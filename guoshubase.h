@@ -22,7 +22,7 @@ void yyerror(const char *);
 //
 // Return codes
 //
-typedef int RC;
+typedef long RC;
 
 #define OK_RC         0    // OK_RC return code is guaranteed to always be 0
 
