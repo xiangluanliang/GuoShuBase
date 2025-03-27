@@ -40,6 +40,3 @@ PF 组件（Paged File Manager）是 **GuoShuBase** 的底层存储管理模块�
 
 > [!tip]
 > However, a PF client can always send an explicit request to force (i.e., write to disk) the contents of a particular page, or to force all dirty pages of a file, without removing those pages from the buffer.
-
-
-测试限制
