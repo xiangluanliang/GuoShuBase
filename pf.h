@@ -4,16 +4,10 @@
 // @CreateTime: 2025/3/13 18:16
 // @Project: GuoShuBase
 //
-//
+// PF(Page File) 组件的接口，包含三个操作类。
 
 #ifndef GUOSHUBASE_PF_H
 #define GUOSHUBASE_PF_H
-//
-// File:        pf.h
-// Description: Paged File component interface
-// Authors:     Hugo Rivero (rivero@cs.stanford.edu)
-//              Dallan Quass (quass@cs.stanford.edu)
-//              Jason McHugh (mchughj@cs.stanford.edu)
 //
 // 1997: Default page size is now 4k.
 //       Some additional constants used for the statistics.

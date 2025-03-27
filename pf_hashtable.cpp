@@ -1,8 +1,8 @@
 //
-// File:        pf_hashtable.cc
-// Description: PF_HashTable class implementation
-// Authors:     Hugo Rivero (rivero@cs.stanford.edu)
-//              Dallan Quass (quass@cs.stanford.edu)
+// @Author: 杨皓然 23301142
+// @E-amil: 23301142@bjtu.edu.cn
+// @CreateTime: 2025/3/27 18:05
+// @Project: GuoShuBase
 //
 
 #include "pf_internal.h"
@@ -25,7 +25,7 @@ PF_HashTable::PF_HashTable(int _numBuckets)
 
   // Initialize all buckets to empty
   for (int i = 0; i < numBuckets; i++)
-    hashTable[i] = NULL;
+    hashTable[i] = nullptr;
 }
 
 //
@@ -40,7 +40,7 @@ PF_HashTable::~PF_HashTable()
 
     // Delete all entries in the bucket
     PF_HashEntry *entry = hashTable[i];
-    while (entry != NULL) {
+    while (entry != nullptr) {
       PF_HashEntry *next = entry->next;
       delete entry;
       entry = next;
@@ -70,7 +70,7 @@ RC PF_HashTable::Find(int fd, PageNum pageNum, int &slot)
 
   // Go through the linked list of this bucket
   for (PF_HashEntry *entry = hashTable[bucket];
-       entry != NULL;
+       entry != nullptr;
        entry = entry->next) {
     if (entry->fd == fd && entry->pageNum == pageNum) {
 
@@ -101,14 +101,14 @@ RC PF_HashTable::Insert(int fd, PageNum pageNum, int slot)
   // Check entry doesn't already exist in the bucket
   PF_HashEntry *entry;
   for (entry = hashTable[bucket];
-       entry != NULL;
+       entry != nullptr;
        entry = entry->next) {
     if (entry->fd == fd && entry->pageNum == pageNum)
       return (PF_HASHPAGEEXIST);
   }
 
   // Allocate memory for new hash entry
-  if ((entry = new PF_HashEntry) == NULL)
+  if ((entry = new PF_HashEntry) == nullptr)
     return (PF_NOMEM);
 
   // Insert entry at head of list for this bucket
@@ -116,8 +116,8 @@ RC PF_HashTable::Insert(int fd, PageNum pageNum, int slot)
   entry->pageNum = pageNum;
   entry->slot = slot;
   entry->next = hashTable[bucket];
-  entry->prev = NULL;
-  if (hashTable[bucket] != NULL)
+  entry->prev = nullptr;
+  if (hashTable[bucket] != nullptr)
     hashTable[bucket]->prev = entry;
   hashTable[bucket] = entry;
 
@@ -141,22 +141,22 @@ RC PF_HashTable::Delete(int fd, PageNum pageNum)
   // Find the entry is in this bucket
   PF_HashEntry *entry;
   for (entry = hashTable[bucket];
-       entry != NULL;
+       entry != nullptr;
        entry = entry->next) {
     if (entry->fd == fd && entry->pageNum == pageNum)
       break;
   }
 
   // Did we find hash entry?
-  if (entry == NULL)
+  if (entry == nullptr)
     return (PF_HASHNOTFOUND);
 
   // Remove this entry
   if (entry == hashTable[bucket])
     hashTable[bucket] = entry->next;
-  if (entry->prev != NULL)
+  if (entry->prev != nullptr)
     entry->prev->next = entry->next;
-  if (entry->next != NULL)
+  if (entry->next != nullptr)
     entry->next->prev = entry->prev;
   delete entry;
 

@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include "pf_internal.h"
 #include "pf_buffermgr.h"
+#include "pf.h"
 
 //
 // PF_Manager

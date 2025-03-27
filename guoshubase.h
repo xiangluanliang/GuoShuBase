@@ -4,28 +4,21 @@
 // @CreateTime: 2025/3/13 18:07
 // @Project: GuoShuBase
 //
-//
+// 本文件定义了一些最基本的数据规则和返回值规则，包括常量、枚举和错误代码等。
 
 #ifndef GUOSHUBASE_GUOSHUBASE_H
 #define GUOSHUBASE_GUOSHUBASE_H
 
-#define MAXNAME       24                // maximum length of a relation
-// or attribute name
-#define MAXSTRINGLEN  255               // maximum length of a
-// string-type attribute
-#define MAXATTRS      40                // maximum number of attributes
-// in a relation
+#define MAXNAME       24                // 关系或属性名（即表名和列名）的最大长度
+#define MAXSTRINGLEN  255               // 字符串类型属性的最大长度
+#define MAXATTRS      40                // 关系中最大属性数（即表中最大列数）
 
-#define yywrap() 1
-void yyerror(const char *);
-
-//
 // Return codes
-//
 typedef int RC;
 
-#define OK_RC         0    // OK_RC return code is guaranteed to always be 0
+#define OK_RC         0    // OK_RC 返回值永远保证为0
 
+//错误码 Error Code Ranges
 #define START_PF_ERR  (-1)
 #define END_PF_ERR    (-100)
 #define START_RM_ERR  (-101)
@@ -37,6 +30,7 @@ typedef int RC;
 #define START_QL_ERR  (-401)
 #define END_QL_ERR    (-500)
 
+//警告码 Warning Code Ranges
 #define START_PF_WARN  1
 #define END_PF_WARN    100
 #define START_RM_WARN  101
@@ -52,31 +46,33 @@ typedef int RC;
 // and PF layers
 const int ALL_PAGES = -1;
 
-//
-// Attribute types
-//
+// 属性类型
 enum AttrType {
     INT,
     FLOAT,
     STRING
 };
 
-//
-// Comparison operators
-//
+// 比较运算符(binary atomic operators)
 enum CompOp {
-    NO_OP,                                      // no comparison
-    EQ_OP, NE_OP, LT_OP, GT_OP, LE_OP, GE_OP    // binary atomic operators
+    NO_OP,         // No comparison
+    EQ_OP, NE_OP,  // Equal, Not Equal
+    LT_OP, GT_OP,  // Less than, Greater than
+    LE_OP, GE_OP   // Less than or Equal, Greater than or Equal
 };
 
-//
+// 不太懂，可能用于缓冲区管理的，Mark一下，用到了再说，没用到就删了
 // Pin Strategy Hint
 //
 enum ClientHint {
     NO_HINT                                     // default value
 };
 
-//
+// 最意义不明的一集，看了一圈就这两行不知道干什么的，不明觉厉不敢删，Mark吧
+#define yywrap() 1
+void yyerror(const char *);
+
+// 兼容性/SQL语义处理，先留着，应该会用上，Mark
 // TRUE, FALSE and BOOLEAN
 //
 #ifndef BOOLEAN
