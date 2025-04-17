@@ -25,6 +25,9 @@ add_library(GuoShuBase STATIC
         test.cpp
         rm_manager.cpp
         rm_filehandle.cpp
+        rm_filescan.cpp
+        rm_scanhandle.cpp
+        rm_scanhandle.h
 )
 
 set_target_properties(GuoShuBase PROPERTIES LINKER_LANGUAGE CXX)
