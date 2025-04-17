@@ -22,6 +22,8 @@ add_library(GuoShuBase STATIC
         statistics.cpp
         pf_buffermgr.cpp
         rm.h
-        test.cpp)
+        test.cpp
+        rm_manager.cpp
+)
 
 set_target_properties(GuoShuBase PROPERTIES LINKER_LANGUAGE CXX)
