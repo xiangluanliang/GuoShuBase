@@ -83,89 +83,30 @@ void WriteLog(const char *psMessage)
 }
 #endif
 
-
-//
-// PF_BufferMgr
-//
-// Desc: Constructor - called by PF_Manager::PF_Manager
-//       The buffer manager manages the page buffer.  When asked for a page,
-//       it checks if it is in the buffer.  If so, it pins the page (pages
-//       can be pinned multiple times).  If not, it reads it from the file
-//       and pins it.  If the buffer is full and a new page needs to be
-//       inserted, an unpinned page is replaced according to an LRU
-// In:   numPages - the number of pages in the buffer
-//
-// Note: The constructor will initialize the global pStatisticsMgr.  We
-//       make it global so that other components may use it and to allow
-//       easy access.
-//
-// Aut2003
-// numPages changed to _numPages for to eliminate CC warnings
-
-PF_BufferMgr::PF_BufferMgr(int _numPages) : hashTable(PF_HASH_TBL_SIZE)
-{
-    // Initialize local variables
+#include <unistd.h>
+#include <cstdio>
+#include <iostream>
+#include <cstring>
+#include "pf_buffermgr.h"
+using namespace std;
+PF_BufferMgr::PF_BufferMgr(int _numPages) : hashTable(PF_HASH_TBL_SIZE) {
     this->numPages = _numPages;
     pageSize = PF_PAGE_SIZE + sizeof(PF_PageHdr);
-
-#ifdef PF_STATS
-    // Initialize the global variable for the statistics manager
-   pStatisticsMgr = new StatisticsMgr();
-#endif
-
-#ifdef PF_LOG
-    char psMessage[100];
-   sprintf (psMessage, "Creating buffer manager. %d pages of size %d.\n",
-         numPages, PF_PAGE_SIZE+sizeof(PF_PageHdr));
-   WriteLog(psMessage);
-#endif
-
-    // Allocate memory for buffer page description table
     bufTable = new PF_BufPageDesc[numPages];
-
-    // Initialize the buffer table and allocate memory for buffer pages.
-    // Initially, the free list contains all pages
     for (int i = 0; i < numPages; i++) {
-        if ((bufTable[i].pData = new char[pageSize]) == NULL) {
-            cerr << "Not enough memory for buffer\n";
-            exit(1);
-        }
-
-        memset ((void *)bufTable[i].pData, 0, pageSize);
-
+        bufTable[i].pData = new char[pageSize];
+        memset(bufTable[i].pData, 0, pageSize);
         bufTable[i].prev = i - 1;
         bufTable[i].next = i + 1;
     }
     bufTable[0].prev = bufTable[numPages - 1].next = INVALID_SLOT;
     free = 0;
     first = last = INVALID_SLOT;
-
-#ifdef PF_LOG
-    WriteLog("Succesfully created the buffer manager.\n");
-#endif
 }
-
-//
-// ~PF_BufferMgr
-//
-// Desc: Destructor - called by PF_Manager::~PF_Manager
-//
-PF_BufferMgr::~PF_BufferMgr()
-{
-    // Free up buffer pages and tables
-    for (int i = 0; i < this->numPages; i++)
-        delete [] bufTable[i].pData;
-
-    delete [] bufTable;
-
-#ifdef PF_STATS
-    // Destroy the global statistics manager
-   delete pStatisticsMgr;
-#endif
-
-#ifdef PF_LOG
-    WriteLog("Destroyed the buffer manager.\n");
-#endif
+PF_BufferMgr::~PF_BufferMgr() {
+    for (int i = 0; i < numPages; i++)
+        delete[] bufTable[i].pData;
+    delete[] bufTable;
 }
 
 //
@@ -959,7 +900,7 @@ RC PF_BufferMgr::AllocateBlock(char *&buffer)
         return rc;
 
     // Create artificial page number (just needs to be unique for hash table)
-    PageNum pageNum = PageNum(bufTable[slot].pData);
+    PageNum pageNum = reinterpret_cast<intptr_t>(bufTable[slot].pData);
 
     // Insert the page into the hash table, and initialize the page description entry
     if ((rc = hashTable.Insert(MEMORY_FD, pageNum, slot) != OK_RC) ||
@@ -984,5 +925,5 @@ RC PF_BufferMgr::AllocateBlock(char *&buffer)
 //
 RC PF_BufferMgr::DisposeBlock(char* buffer)
 {
-    return UnpinPage(MEMORY_FD, PageNum(buffer));
+    return UnpinPage(MEMORY_FD, reinterpret_cast<intptr_t>(buffer));
 }

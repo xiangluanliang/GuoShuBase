@@ -36,7 +36,7 @@ class LinkList
       void operator = ( const LinkList<T> & sourcell );
 
       // Equality tester
-      Boolean operator == ( const LinkList<T> & rhs ) const;
+      bool operator == ( const LinkList<T> & rhs ) const;
 
       // Copy the LinkList and convert it to an array.  Caller is
       // responsible for releasing memory.
@@ -93,23 +93,23 @@ class LinkList
       int iLastRef;              // Which element # last referenced
 
       // Set the Private members of the class to initial values
-      void SetNull();
+      void Setnullptr();
 };
 
 /****************************************************************************/
 
 //
-// SetNull
+// Setnullptr
 //
 // This will set (or reset) the intial values of the private members of
 // LinkList
 //
 template <class T>
-inline void LinkList<T>::SetNull()
+inline void LinkList<T>::Setnullptr()
 {
-   pnHead = NULL;
-   pnTail = NULL;
-   pnLastRef = NULL;
+   pnHead = nullptr;
+   pnTail = nullptr;
+   pnLastRef = nullptr;
    iLength = 0;
    iLastRef = -1;
 }
@@ -124,7 +124,7 @@ inline void LinkList<T>::SetNull()
 template <class T>
 inline LinkList<T>::LinkList ()
 {
-   SetNull();
+   Setnullptr();
 }
 
 /****************************************************************************/
@@ -138,7 +138,7 @@ template <class T>
 LinkList<T>::LinkList ( const LinkList<T> & sourcell )
 {
    // Initialize the new list
-   SetNull();
+   Setnullptr();
 
    // And copy all the members of the passed in list
    if (sourcell.iLength == 0)
@@ -146,7 +146,7 @@ LinkList<T>::LinkList ( const LinkList<T> & sourcell )
 
    InternalNode *n = sourcell.pnHead;
 
-   while (n != NULL)
+   while (n != nullptr)
    {
       Append(n->Data);
       n = n->next;
@@ -183,13 +183,13 @@ void LinkList<T>::operator = ( const LinkList<T> & sourcell )
    // Now, copy the passed in list
    InternalNode *pnTemp = sourcell.pnHead;
 
-   while (pnTemp != NULL)
+   while (pnTemp != nullptr)
    {
       Append(pnTemp->Data);
       pnTemp = pnTemp->next;
    }
 
-   pnLastRef = NULL;
+   pnLastRef = nullptr;
    iLastRef = -1;
 }
 
@@ -201,28 +201,28 @@ void LinkList<T>::operator = ( const LinkList<T> & sourcell )
 // Test for equality of two link lists
 //
 template <class T>
-Boolean LinkList<T>::operator == ( const LinkList<T> & rhs ) const
+bool LinkList<T>::operator == ( const LinkList<T> & rhs ) const
 {
    if (iLength != rhs.iLength)
-      return (FALSE);
+      return (false);
 
    InternalNode *pnLhs = this->pnHead;
    InternalNode *pnRhs = rhs.pnHead;
 
-   while (pnLhs != NULL && pnRhs != NULL)
+   while (pnLhs != nullptr && pnRhs != nullptr)
    {
       // The Data type T set by the template had better define an equality
       // operator for their data type!
       if (!(pnLhs->Data == pnRhs->Data))
-         return FALSE;
+         return false;
       pnLhs = pnLhs->next;
       pnRhs = pnRhs->next;
    }
 
-   if (pnLhs==NULL && pnRhs==NULL)
-      return TRUE;
+   if (pnLhs==nullptr && pnRhs==nullptr)
+      return true;
    else
-      return FALSE;
+      return false;
 }
 /****************************************************************************/
 
@@ -235,14 +235,14 @@ template <class T>
 LinkList<T>::operator T * ()
 {
    if (iLength == 0)
-      return NULL;
+      return nullptr;
 
    T *pResult = new T[iLength];
 
    InternalNode *pnCur = pnHead;
    T *pnCopy = pResult;
 
-   while (pnCur != NULL)
+   while (pnCur != nullptr)
    {
       *pnCopy = pnCur->Data;
       ++pnCopy;
@@ -267,7 +267,7 @@ inline void LinkList<T>::Append ( const T & item )
    InternalNode *pnNew = new InternalNode;
 
    pnNew->Data = item;
-   pnNew->next = NULL;
+   pnNew->next = nullptr;
    pnNew->previous = pnTail;
 
    // If it is the first then set the head to this element
@@ -331,11 +331,11 @@ void
 LinkList<T>::operator+=(const T &element)
 {
     InternalNode *pnNew = new InternalNode;
-    pnNew->next = NULL;
+    pnNew->next = nullptr;
     pnNew->Data = element;
     if (iLength++ == 0) {
         pnHead = pnNew;
-        pnNew->previous = NULL;
+        pnNew->previous = nullptr;
     }
     else {
         pnTail->next = pnNew;
@@ -351,7 +351,7 @@ void LinkList<T>::Append ( const LinkList<T> & sourcell )
 {
    const InternalNode *pnCur = sourcell.pnHead;
 
-   while (pnCur != NULL)
+   while (pnCur != nullptr)
    {
       Append(pnCur->Data);
       pnCur = pnCur->next;
@@ -378,15 +378,15 @@ inline void LinkList<T>::Delete(int which)
 
    if (pnDeleteMe == pnHead)
    {
-      if (pnDeleteMe->next == NULL)
+      if (pnDeleteMe->next == nullptr)
       {
          delete pnDeleteMe;
-         SetNull();
+         Setnullptr();
       }
       else
       {
          pnHead = pnDeleteMe->next;
-         pnHead->previous = NULL;
+         pnHead->previous = nullptr;
          delete pnDeleteMe;
          pnLastRef = pnHead;
       }
@@ -395,15 +395,15 @@ inline void LinkList<T>::Delete(int which)
    {
       if (pnDeleteMe == pnTail)
       {
-         if (pnDeleteMe->previous == NULL)
+         if (pnDeleteMe->previous == nullptr)
          {
             delete pnDeleteMe;
-            SetNull();
+            Setnullptr();
          }
          else
          {
             pnTail = pnDeleteMe->previous;
-            pnTail->next = NULL;
+            pnTail->next = nullptr;
             delete pnDeleteMe;
             pnLastRef = pnTail;
          }
@@ -441,13 +441,13 @@ inline void LinkList<T>::Erase()
 {
    pnLastRef = pnHead;
 
-   while (pnLastRef != NULL)
+   while (pnLastRef != nullptr)
    {
       pnHead = pnLastRef->next;
       delete pnLastRef;
       pnLastRef = pnHead;
    }
-   SetNull();
+   Setnullptr();
 }
 
 /****************************************************************************/
@@ -467,7 +467,7 @@ inline T* LinkList<T>::Get(int index)
 
    // Make sure that item is within bounds
 	if (index < 0 || index >= iLength)
-		return NULL;
+		return nullptr;
 
    // Having the index be base 1 makes this procedure much easier.
    index++;
