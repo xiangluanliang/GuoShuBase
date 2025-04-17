@@ -11,157 +11,116 @@
 //
 // PF_HashTable
 //
-// Desc: Constructor for PF_HashTable object, which allows search, insert,
-//       and delete of hash table entries.
-// In:   numBuckets - number of hash table buckets
+// 描述: PF_HashTable 对象的构造函数，支持查找、插入和删除哈希表条目。
+// 输入: numBuckets - 哈希表桶的数量
 //
-PF_HashTable::PF_HashTable(int _numBuckets)
-{
-  // Initialize numBuckets local variable from parameter
-  this->numBuckets = _numBuckets;
 
-  // Allocate memory for hash table
-  hashTable = new PF_HashEntry* [numBuckets];
-
-  // Initialize all buckets to empty
-  for (int i = 0; i < numBuckets; i++)
-    hashTable[i] = nullptr;
+PF_HashTable::PF_HashTable(int _numBuckets) {
+    this->numBuckets = _numBuckets;
+    hashTable = new PF_HashEntry *[numBuckets];
+    for (int i = 0; i < numBuckets; i++)
+        hashTable[i] = nullptr;
 }
-
 //
 // ~PF_HashTable
 //
-// Desc: Destructor
+// 描述: 析构函数
 //
-PF_HashTable::~PF_HashTable()
-{
-  // Clear out all buckets
-  for (int i = 0; i < numBuckets; i++) {
-
-    // Delete all entries in the bucket
-    PF_HashEntry *entry = hashTable[i];
-    while (entry != nullptr) {
-      PF_HashEntry *next = entry->next;
-      delete entry;
-      entry = next;
+PF_HashTable::~PF_HashTable() {
+    for (int i = 0; i < numBuckets; i++) {
+        PF_HashEntry *entry = hashTable[i];
+        while (entry != nullptr) {
+            PF_HashEntry *next = entry->next;
+            delete entry;
+            entry = next;
+        }
     }
-  }
-
-  // Finally delete the hash table
-  delete[] hashTable;
+    delete[] hashTable;
 }
 
 //
 // Find
 //
-// Desc: Find a hash table entry.
-// In:   fd - file descriptor
-//       pageNum - page number
-// Out:  slot - set to slot associated with fd and pageNum
-// Ret:  PF return code
+// 描述: 查找哈希表条目。
+// 输入: fd - 文件描述符
+//       pageNum - 页号
+// 输出: slot - 设为与 fd 和 pageNum 关联的槽位
+// 返回: PF 返回码
 //
-RC PF_HashTable::Find(int fd, PageNum pageNum, int &slot)
-{
-  // Get which bucket it should be in
-  int bucket = Hash(fd, pageNum);
-
-  if (bucket<0)
-     return (PF_HASHNOTFOUND);
-
-  // Go through the linked list of this bucket
-  for (PF_HashEntry *entry = hashTable[bucket];
-       entry != nullptr;
-       entry = entry->next) {
-    if (entry->fd == fd && entry->pageNum == pageNum) {
-
-      // Found it
-      slot = entry->slot;
-      return (0);
+RC PF_HashTable::Find(int fd, PageNum pageNum, int &slot) {
+    int bucket = Hash(fd, pageNum);
+    if (bucket < 0)
+        return (PF_HASHNOTFOUND);
+    for (PF_HashEntry *entry = hashTable[bucket];
+         entry != nullptr;
+         entry = entry->next) {
+        if (entry->fd == fd && entry->pageNum == pageNum) {
+            slot = entry->slot;
+            return (0);
+        }
     }
-  }
-
-  // Didn't find it
-  return (PF_HASHNOTFOUND);
+    return (PF_HASHNOTFOUND);
 }
+
 
 //
 // Insert
 //
-// Desc: Insert a hash table entry
-// In:   fd - file descriptor
-//       pagenum - page number
-//       slot - slot associated with fd and pageNum
-// Ret:  PF return code
+// 描述: 插入哈希表条目。
+// 输入: fd - 文件描述符
+//       pageNum - 页号
+//       slot - 与 fd 和 pageNum 关联的槽位
+// 返回: PF 返回码
 //
-RC PF_HashTable::Insert(int fd, PageNum pageNum, int slot)
-{
-  // Get which bucket it should be in
-  int bucket = Hash(fd, pageNum);
-
-  // Check entry doesn't already exist in the bucket
-  PF_HashEntry *entry;
-  for (entry = hashTable[bucket];
-       entry != nullptr;
-       entry = entry->next) {
-    if (entry->fd == fd && entry->pageNum == pageNum)
-      return (PF_HASHPAGEEXIST);
-  }
-
-  // Allocate memory for new hash entry
-  if ((entry = new PF_HashEntry) == nullptr)
-    return (PF_NOMEM);
-
-  // Insert entry at head of list for this bucket
-  entry->fd = fd;
-  entry->pageNum = pageNum;
-  entry->slot = slot;
-  entry->next = hashTable[bucket];
-  entry->prev = nullptr;
-  if (hashTable[bucket] != nullptr)
-    hashTable[bucket]->prev = entry;
-  hashTable[bucket] = entry;
-
-  // Return ok
-  return (0);
+RC PF_HashTable::Insert(int fd, PageNum pageNum, int slot) {
+    int bucket = Hash(fd, pageNum);
+    PF_HashEntry *entry;
+    for (entry = hashTable[bucket];
+         entry != nullptr;
+         entry = entry->next) {
+        if (entry->fd == fd && entry->pageNum == pageNum)
+            return (PF_HASHPAGEEXIST);
+    }
+    if ((entry = new PF_HashEntry) == nullptr) //这种情况都要考虑到吗……
+        return (PF_NOMEM);
+    entry->fd = fd;
+    entry->pageNum = pageNum;
+    entry->slot = slot;
+    entry->next = hashTable[bucket];
+    entry->prev = nullptr;
+    if (hashTable[bucket] != nullptr)
+        hashTable[bucket]->prev = entry;
+    hashTable[bucket] = entry;
+    return (0);
 }
 
 //
 // Delete
 //
-// Desc: Delete a hash table entry
-// In:   fd - file descriptor
-//       pagenum - page number
-// Ret:  PF return code
+// 描述: 删除哈希表条目。
+// 输入: fd - 文件描述符
+//       pageNum - 页号
+// 返回: PF 返回码
 //
-RC PF_HashTable::Delete(int fd, PageNum pageNum)
-{
-  // Get which bucket it should be in
-  int bucket = Hash(fd, pageNum);
-
-  // Find the entry is in this bucket
-  PF_HashEntry *entry;
-  for (entry = hashTable[bucket];
-       entry != nullptr;
-       entry = entry->next) {
-    if (entry->fd == fd && entry->pageNum == pageNum)
-      break;
-  }
-
-  // Did we find hash entry?
-  if (entry == nullptr)
-    return (PF_HASHNOTFOUND);
-
-  // Remove this entry
-  if (entry == hashTable[bucket])
-    hashTable[bucket] = entry->next;
-  if (entry->prev != nullptr)
-    entry->prev->next = entry->next;
-  if (entry->next != nullptr)
-    entry->next->prev = entry->prev;
-  delete entry;
-
-  // Return ook
-  return (0);
+RC PF_HashTable::Delete(int fd, PageNum pageNum) {
+    int bucket = Hash(fd, pageNum);
+    PF_HashEntry *entry;
+    for (entry = hashTable[bucket];
+         entry != nullptr;
+         entry = entry->next) {
+        if (entry->fd == fd && entry->pageNum == pageNum)
+            break;
+    }
+    if (entry == nullptr)
+        return (PF_HASHNOTFOUND);
+    if (entry == hashTable[bucket])
+        hashTable[bucket] = entry->next;
+    if (entry->prev != nullptr)
+        entry->prev->next = entry->next;
+    if (entry->next != nullptr)
+        entry->next->prev = entry->prev;
+    delete entry;
+    return (0);
 }
 
 

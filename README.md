@@ -7,6 +7,8 @@
 
 ## PF组件说明
 
+4.17编
+
 PF 组件（Paged File Manager）是 **GuoShuBase** 的底层存储管理模块，它负责 **磁盘页面的分配、读取、写入和缓存**。它为更高级的组件（如记录管理 RM、索引管理 IX）提供 **页面级别的存储抽象**，并通过 **缓冲管理** 提高 I/O 性能。
 
 **PF 组件的核心功能**
@@ -31,10 +33,10 @@ PF 组件（Paged File Manager）是 **GuoShuBase** 的底层存储管理模块�
 建议按如下顺序阅读代码（及代码中的注释）
 
 - `guoshubase.h`
-- `pf.h` （先扫一遍就行）
+- `pf.h`
 - `pf_internal.h`
 - `pf_hashtable.h`
-
+- `pf_hashtable.cpp`
 
 **提示：**
 
