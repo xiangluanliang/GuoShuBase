@@ -863,7 +863,7 @@ RC PF_BufferMgr::GetBlockSize(int &length) const
     length = pageSize;
     return OK_RC;
 }
-
+//
 
 //
 // AllocateBlock
