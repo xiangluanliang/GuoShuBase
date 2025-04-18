@@ -5,6 +5,7 @@
 // @Project: GuoShuBase
 //
 //
+
 #include <cstdio>
 #include <unistd.h>
 #include <iostream>
@@ -12,34 +13,29 @@
 
 using namespace std;
 
-// The switch PF_STATS indicates that the user wishes to have statistics
-// tracked for the PF layer
+// 如果定义了PF_STATS，表示用户希望跟踪PF层的统计信息
 #ifdef PF_STATS
-#include "statistics.h"   // For StatisticsMgr interface
+#include "statistics.h"   // 包含用于StatisticsMgr接口的头文件
 
-// Global variable for the statistics manager
+// 全局变量，用于统计管理器
 StatisticsMgr *pStatisticsMgr;
 #endif
 
+// 如果定义了PF_LOG，包含日志记录功能
 #ifdef PF_LOG
 
 //
 // WriteLog
 //
-// This is a self contained unit that will create a new log file and send
-// psMessage to the log file.  Notice that I do not close the file fLog at
-// any time.  Hopefully if all goes well this will be done when the program
-// exits.
+// 这是一个独立的单元，用于创建一个新的日志文件并将psMessage写入该文件。
+// 注意，我不会在这里关闭fLog文件。如果一切顺利，程序退出时将自动关闭。
 //
 void WriteLog(const char *psMessage)
 {
    static FILE *fLog = NULL;
 
-   // The first time through we have to create a new Log file
+   // 第一次调用时创建一个新的日志文件
    if (fLog == NULL) {
-      // This is the first time so I need to create a new log file.
-      // The log file will be named "PF_LOG.x" where x is the next
-      // available sequential number
       int iLogNum = -1;
       int bFound = FALSE;
       char psFileName[10];
@@ -60,7 +56,6 @@ void WriteLog(const char *psMessage)
          exit(1);
       }
    }
-   // Now we have the log file open and ready for writing
    fprintf (fLog, psMessage);
 }
 #endif
@@ -71,6 +66,13 @@ void WriteLog(const char *psMessage)
 #include <cstring>
 #include "pf_buffermgr.h"
 using namespace std;
+
+//
+// PF_BufferMgr类
+//
+// 这个类实现了缓冲管理器，负责管理内存中的页缓存。
+// 包括页的分配、读取、写入、标记脏页、取消固定页等功能。
+//
 PF_BufferMgr::PF_BufferMgr(int _numPages) : hashTable(PF_HASH_TBL_SIZE) {
     this->numPages = _numPages;
     pageSize = PF_PAGE_SIZE + sizeof(PF_PageHdr);
@@ -85,6 +87,12 @@ PF_BufferMgr::PF_BufferMgr(int _numPages) : hashTable(PF_HASH_TBL_SIZE) {
     free = 0;
     first = last = INVALID_SLOT;
 }
+
+//
+// ~PF_BufferMgr析构函数
+//
+// 释放缓冲管理器中所有页的内存。
+//
 PF_BufferMgr::~PF_BufferMgr() {
     for (int i = 0; i < numPages; i++)
         delete[] bufTable[i].pData;
@@ -92,25 +100,16 @@ PF_BufferMgr::~PF_BufferMgr() {
 }
 
 //
-// GetPage
+// GetPage方法
 //
-// Desc: Get a pointer to a page pinned in the buffer.  If the page is
-//       already in the buffer, (re)pin the page and return a pointer
-//       to it.  If the page is not in the buffer, read it from the file,
-//       pin it, and return a pointer to it.  If the buffer is full,
-//       replace an unpinned page.
-// In:   fd - OS file descriptor of the file to read
-//       pageNum - number of the page to read
-//       bMultiplePins - if FALSE, it is an error to ask for a page that is
-//                       already pinned in the buffer.
-// Out:  ppBuffer - set *ppBuffer to point to the page in the buffer
-// Ret:  PF return code
+// 获取一个固定在缓冲区的页的指针。如果页已经在缓冲区中，则重新固定页并返回指针。
+// 如果页不在缓冲区中，则从文件读取页，固定页并返回指针。
+// 如果缓冲区已满，则替换一个未固定的页。
 //
-RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
-                         int bMultiplePins)
+RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer, int bMultiplePins)
 {
-    RC  rc;     // return code
-    int slot;   // buffer slot where page is located
+    RC  rc;     // 返回码
+    int slot;   // 缓冲区中页的位置
 
 #ifdef PF_LOG
     char psMessage[100];
@@ -118,35 +117,32 @@ RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
    WriteLog(psMessage);
 #endif
 
-
 #ifdef PF_STATS
     pStatisticsMgr->Register(PF_GETPAGE, STAT_ADDONE);
 #endif
 
-    // Search for page in buffer
+    // 在缓冲区中查找页
     if ((rc = hashTable.Find(fd, pageNum, slot)) &&
         (rc != PF_HASHNOTFOUND))
-        return (rc);                // unexpected error
+        return (rc);                // 非预期的错误
 
-    // If page not in buffer...
+    // 如果页不在缓冲区中...
     if (rc == PF_HASHNOTFOUND) {
 
 #ifdef PF_STATS
         pStatisticsMgr->Register(PF_PAGENOTFOUND, STAT_ADDONE);
 #endif
 
-        // Allocate an empty page, this will also promote the newly allocated
-        // page to the MRU slot
+        // 分配一个空页，这也会将新分配的页提升为最近使用页
         if ((rc = InternalAlloc(slot)))
             return (rc);
 
-        // read the page, insert it into the hash table,
-        // and initialize the page description entry
+        // 读取页，将其插入哈希表，并初始化页描述条目
         if ((rc = ReadPage(fd, pageNum, bufTable[slot].pData)) ||
             (rc = hashTable.Insert(fd, pageNum, slot)) ||
             (rc = InitPageDesc(fd, pageNum, slot))) {
 
-            // Put the slot back on the free list before returning the error
+            // 在返回错误前，将该槽位重新放入空闲列表
             Unlink(slot);
             InsertFree(slot);
             return (rc);
@@ -155,50 +151,45 @@ RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
         WriteLog("Page not found in buffer. Loaded.\n");
 #endif
     }
-    else {   // Page is in the buffer...
+    else {   // 页在缓冲区中...
 
 #ifdef PF_STATS
         pStatisticsMgr->Register(PF_PAGEFOUND, STAT_ADDONE);
 #endif
 
-        // Error if we don't want to get a pinned page
+        // 如果不允许固定已固定的页，返回错误
         if (!bMultiplePins && bufTable[slot].pinCount > 0)
             return (PF_PAGEPINNED);
 
-        // Page is alredy in memory, just increment pin count
+        // 页已经在内存中，只需增加固定计数
         bufTable[slot].pinCount++;
 #ifdef PF_LOG
-        sprintf (psMessage, "Page found in buffer.  %d pin count.\n",
-            bufTable[slot].pinCount);
+        sprintf (psMessage, "Page found in buffer.  %d pin count.\n", bufTable[slot].pinCount);
       WriteLog(psMessage);
 #endif
 
-        // Make this page the most recently used page
+        // 将该页设置为最近使用页
         if ((rc = Unlink(slot)) ||
             (rc = LinkHead (slot)))
             return (rc);
     }
 
-    // Point ppBuffer to page
+    // 将ppBuffer指向该页
     *ppBuffer = bufTable[slot].pData;
 
-    // Return ok
+    // 返回成功码
     return (0);
 }
 
 //
-// AllocatePage
+// AllocatePage方法
 //
-// Desc: Allocate a new page in the buffer and return a pointer to it.
-// In:   fd - OS file descriptor of the file associated with the new page
-//       pageNum - number of the new page
-// Out:  ppBuffer - set *ppBuffer to point to the page in the buffer
-// Ret:  PF return code
+// 分配一个新的页到缓冲区，并返回指向该页的指针。
 //
 RC PF_BufferMgr::AllocatePage(int fd, PageNum pageNum, char **ppBuffer)
 {
-    RC  rc;     // return code
-    int slot;   // buffer slot where page is located
+    RC  rc;     // 返回码
+    int slot;   // 缓冲区中页的位置
 
 #ifdef PF_LOG
     char psMessage[100];
@@ -206,22 +197,21 @@ RC PF_BufferMgr::AllocatePage(int fd, PageNum pageNum, char **ppBuffer)
    WriteLog(psMessage);
 #endif
 
-    // If page is already in buffer, return an error
+    // 如果页已经在缓冲区中，返回错误
     if (!(rc = hashTable.Find(fd, pageNum, slot)))
         return (PF_PAGEINBUF);
     else if (rc != PF_HASHNOTFOUND)
-        return (rc);              // unexpected error
+        return (rc);              // 非预期的错误
 
-    // Allocate an empty page
+    // 分配一个空页
     if ((rc = InternalAlloc(slot)))
         return (rc);
 
-    // Insert the page into the hash table,
-    // and initialize the page description entry
+    // 将页插入哈希表，并初始化页描述条目
     if ((rc = hashTable.Insert(fd, pageNum, slot)) ||
         (rc = InitPageDesc(fd, pageNum, slot))) {
 
-        // Put the slot back on the free list before returning the error
+        // 在返回错误前，将该槽位重新放入空闲列表
         Unlink(slot);
         InsertFree(slot);
         return (rc);
@@ -231,26 +221,22 @@ RC PF_BufferMgr::AllocatePage(int fd, PageNum pageNum, char **ppBuffer)
     WriteLog("Succesfully allocated page.\n");
 #endif
 
-    // Point ppBuffer to page
+    // 将ppBuffer指向该页
     *ppBuffer = bufTable[slot].pData;
 
-    // Return ok
+    // 返回成功码
     return (0);
 }
 
 //
-// MarkDirty
+// MarkDirty方法
 //
-// Desc: Mark a page dirty so that when it is discarded from the buffer
-//       it will be written back to the file.
-// In:   fd - OS file descriptor of the file associated with the page
-//       pageNum - number of the page to mark dirty
-// Ret:  PF return code
+// 标记一个页为脏页，使其在从缓冲区释放时能被写回磁盘。
 //
 RC PF_BufferMgr::MarkDirty(int fd, PageNum pageNum)
 {
-    RC  rc;       // return code
-    int slot;     // buffer slot where page is located
+    RC  rc;       // 返回码
+    int slot;     // 缓冲区中页的位置
 
 #ifdef PF_LOG
     char psMessage[100];
@@ -258,48 +244,45 @@ RC PF_BufferMgr::MarkDirty(int fd, PageNum pageNum)
    WriteLog(psMessage);
 #endif
 
-    // The page must be found and pinned in the buffer
+    // 页必须在缓冲区中并且被固定
     if ((rc = hashTable.Find(fd, pageNum, slot))){
         if ((rc == PF_HASHNOTFOUND))
             return (PF_PAGENOTINBUF);
         else
-            return (rc);              // unexpected error
+            return (rc);              // 非预期的错误
     }
 
     if (bufTable[slot].pinCount == 0)
         return (PF_PAGEUNPINNED);
 
-    // Mark this page dirty
+    // 标记页为脏页
     bufTable[slot].bDirty = TRUE;
 
-    // Make this page the most recently used page
+    // 将页设为最近使用页
     if ((rc = Unlink(slot)) ||
         (rc = LinkHead (slot)))
         return (rc);
 
-    // Return ok
+    // 返回成功码
     return (0);
 }
 
 //
-// UnpinPage
+// UnpinPage方法
 //
-// Desc: Unpin a page so that it can be discarded from the buffer.
-// In:   fd - OS file descriptor of the file associated with the page
-//       pageNum - number of the page to unpin
-// Ret:  PF return code
+// 取消固定一个页，使其可以被从缓冲区释放。
 //
 RC PF_BufferMgr::UnpinPage(int fd, PageNum pageNum)
 {
-    RC  rc;       // return code
-    int slot;     // buffer slot where page is located
+    RC  rc;       // 返回码
+    int slot;     // 缓冲区中页的位置
 
-    // The page must be found and pinned in the buffer
+    // 页必须在缓冲区中并且被固定
     if ((rc = hashTable.Find(fd, pageNum, slot))){
         if ((rc == PF_HASHNOTFOUND))
             return (PF_PAGENOTINBUF);
         else
-            return (rc);              // unexpected error
+            return (rc);              // 非预期的错误
     }
 
     if (bufTable[slot].pinCount == 0)
@@ -307,35 +290,30 @@ RC PF_BufferMgr::UnpinPage(int fd, PageNum pageNum)
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Unpinning (%d,%d). %d Pin count\n",
-         fd, pageNum, bufTable[slot].pinCount-1);
+   sprintf (psMessage, "Unpinning (%d,%d). %d Pin count\n", fd, pageNum, bufTable[slot].pinCount-1);
    WriteLog(psMessage);
 #endif
 
-    // If unpinning the last pin, make it the most recently used page
+    // 如果固定计数为0，将其设为最近使用页
     if (--(bufTable[slot].pinCount) == 0) {
         if ((rc = Unlink(slot)) ||
             (rc = LinkHead (slot)))
             return (rc);
     }
 
-    // Return ok
+    // 返回成功码
     return (0);
 }
 
 //
-// FlushPages
+// FlushPages方法
 //
-// Desc: Release all pages for this file and put them onto the free list
-//       Returns a warning if any of the file's pages are pinned.
-//       A linear search of the buffer is performed.
-//       A better method is not needed because # of buffers are small.
-// In:   fd - file descriptor
-// Ret:  PF_PAGEPINNED or other PF return code
+// 释放所有属于指定文件的页，并将其放到空闲列表中。
+// 如果任何文件的页被固定，返回警告。
 //
 RC PF_BufferMgr::FlushPages(int fd)
 {
-    RC rc, rcWarn = 0;  // return codes
+    RC rc, rcWarn = 0;  // 返回码
 
 #ifdef PF_LOG
     char psMessage[100];
@@ -347,25 +325,25 @@ RC PF_BufferMgr::FlushPages(int fd)
     pStatisticsMgr->Register(PF_FLUSHPAGES, STAT_ADDONE);
 #endif
 
-    // Do a linear scan of the buffer to find pages belonging to the file
+    // 线性扫描缓冲区以找到属于该文件的页
     int slot = first;
     while (slot != INVALID_SLOT) {
 
         int next = bufTable[slot].next;
 
-        // If the page belongs to the passed-in file descriptor
+        // 如果页属于指定的文件描述符
         if (bufTable[slot].fd == fd) {
 
 #ifdef PF_LOG
             sprintf (psMessage, "Page (%d) is in buffer manager.\n", bufTable[slot].pageNum);
  WriteLog(psMessage);
 #endif
-            // Ensure the page is not pinned
+            // 确保页未被固定
             if (bufTable[slot].pinCount) {
                 rcWarn = PF_PAGEPINNED;
             }
             else {
-                // Write the page if dirty
+                // 如果页是脏页，写入磁盘
                 if (bufTable[slot].bDirty) {
 #ifdef PF_LOG
                     sprintf (psMessage, "Page (%d) is dirty\n",bufTable[slot].pageNum);
@@ -376,7 +354,7 @@ RC PF_BufferMgr::FlushPages(int fd)
                     bufTable[slot].bDirty = FALSE;
                 }
 
-                // Remove page from the hash table and add the slot to the free list
+                // 从哈希表中删除页，并将槽位添加到空闲列表中
                 if ((rc = hashTable.Delete(fd, bufTable[slot].pageNum)) ||
                     (rc = Unlink(slot)) ||
                     (rc = InsertFree(slot)))
@@ -390,23 +368,19 @@ RC PF_BufferMgr::FlushPages(int fd)
     WriteLog("All necessary pages flushed.\n");
 #endif
 
-    // Return warning or ok
+    // 返回警告或成功码
     return (rcWarn);
 }
 
 //
-// ForcePages
+// ForcePages方法
 //
-// Desc: If a page is dirty then force the page from the buffer pool
-//       onto disk.  The page will not be forced out of the buffer pool.
-// In:   The page number, a default value of ALL_PAGES will be used if
-//       the client doesn't provide a value.  This will force all pages.
-// Ret:  Standard PF errors
-//
+// 如果页是脏页，则强制将页写入磁盘。
+// 页将不会从缓冲池中被强制移除。
 //
 RC PF_BufferMgr::ForcePages(int fd, PageNum pageNum)
 {
-    RC rc;  // return codes
+    RC rc;  // 返回码
 
 #ifdef PF_LOG
     char psMessage[100];
@@ -414,13 +388,13 @@ RC PF_BufferMgr::ForcePages(int fd, PageNum pageNum)
    WriteLog(psMessage);
 #endif
 
-    // Do a linear scan of the buffer to find the page for the file
+    // 线性扫描缓冲区以找到属于该文件的页
     int slot = first;
     while (slot != INVALID_SLOT) {
 
         int next = bufTable[slot].next;
 
-        // If the page belongs to the passed-in file descriptor
+        // 如果页属于指定的文件描述符
         if (bufTable[slot].fd == fd &&
             (pageNum==ALL_PAGES || bufTable[slot].pageNum == pageNum)) {
 
@@ -428,8 +402,7 @@ RC PF_BufferMgr::ForcePages(int fd, PageNum pageNum)
             sprintf (psMessage, "Page (%d) is in buffer pool.\n", bufTable[slot].pageNum);
  WriteLog(psMessage);
 #endif
-            // I don't care if the page is pinned or not, just write it if
-            // it is dirty.
+            // 无论页是否固定，如果脏则写入磁盘
             if (bufTable[slot].bDirty) {
 #ifdef PF_LOG
                 sprintf (psMessage, "Page (%d) is dirty\n",bufTable[slot].pageNum);
@@ -446,15 +419,11 @@ WriteLog(psMessage);
     return 0;
 }
 
-
 //
-// PrintBuffer
+// PrintBuffer方法
 //
-// Desc: Display all of the pages within the buffer.
-//       This routine will be called via the system command.
-// In:   Nothing
-// Out:  Nothing
-// Ret:  Always returns 0
+// 显示缓冲区中的所有页。
+// 该方法可通过系统命令调用。
 //
 RC PF_BufferMgr::PrintBuffer()
 {
@@ -483,18 +452,12 @@ RC PF_BufferMgr::PrintBuffer()
     return 0;
 }
 
-
 //
-// ClearBuffer
+// ClearBuffer方法
 //
-// Desc: Remove all entries from the buffer manager.
-//       This routine will be called via the system command and is only
-//       really useful if the user wants to run some performance
-//       comparison starting with an clean buffer.
-// In:   Nothing
-// Out:  Nothing
-// Ret:  Will return an error if a page is pinned and the Clear routine
-//       is called.
+// 从缓冲管理器中移除所有条目。
+// 该方法可通过系统命令调用。
+//
 RC PF_BufferMgr::ClearBuffer()
 {
     RC rc;
@@ -516,32 +479,23 @@ RC PF_BufferMgr::ClearBuffer()
 }
 
 //
-// ResizeBuffer
+// ResizeBuffer方法
 //
-// Desc: Resizes the buffer manager to the size passed in.
-//       This routine will be called via the system command.
-// In:   The new buffer size
-// Out:  Nothing
-// Ret:  0 for success or,
-//       Some other PF error (probably PF_NOBUF)
-//
-// Notes: This method attempts to copy all the old pages which I am
-// unable to kick out of the old buffer manager into the new buffer
-// manager.  This obviously cannot always be successfull!
+// 调整缓冲管理器的大小。
+// 该方法可通过系统命令调用。
 //
 RC PF_BufferMgr::ResizeBuffer(int iNewSize)
 {
     int i;
     RC rc;
 
-    // First try and clear out the old buffer!
+    // 首先尝试清空旧的缓冲区!
     ClearBuffer();
 
-    // Allocate memory for a new buffer table
+    // 分配新的缓冲表内存
     PF_BufPageDesc *pNewBufTable = new PF_BufPageDesc[iNewSize];
 
-    // Initialize the new buffer table and allocate memory for buffer
-    // pages.  Initially, the free list contains all pages
+    // 初始化新的缓冲表并分配页内存。初始时，空闲列表包含所有页
     for (i = 0; i < iNewSize; i++) {
         if ((pNewBufTable[i].pData = new char[pageSize]) == NULL) {
             cerr << "Not enough memory for buffer\n";
@@ -555,212 +509,172 @@ RC PF_BufferMgr::ResizeBuffer(int iNewSize)
     }
     pNewBufTable[0].prev = pNewBufTable[iNewSize - 1].next = INVALID_SLOT;
 
-    // Now we must remember the old first and last slots and (of course)
-    // the buffer table itself.  Then we use insert methods to insert
-    // each of the entries into the new buffertable
+    // 记录旧的first和last槽位以及缓冲表本身。然后使用插入方法将每个条目插入到新的缓冲表中
     int oldFirst = first;
     PF_BufPageDesc *pOldBufTable = bufTable;
 
-    // Setup the new number of pages,  first, last and free
+    // 设置新的页数，first，last和free
     numPages = iNewSize;
     first = last = INVALID_SLOT;
     free = 0;
 
-    // Setup the new buffer table
+    // 设置新的缓冲表
     bufTable = pNewBufTable;
 
-    // We must first remove from the hashtable any possible entries
+    // 必须先从哈希表中移除任何可能的条目
     int slot, next, newSlot;
     slot = oldFirst;
     while (slot != INVALID_SLOT) {
         next = pOldBufTable[slot].next;
 
-        // Must remove the entry from the hashtable from the
+        // 从哈希表中移除条目
         if ((rc=hashTable.Delete(pOldBufTable[slot].fd, pOldBufTable[slot].pageNum)))
             return (rc);
         slot = next;
     }
 
-    // Now we traverse through the old buffer table and copy any old
-    // entries into the new one
+    // 现在遍历旧的缓冲表，将旧条目复制到新的缓冲表中
     slot = oldFirst;
     while (slot != INVALID_SLOT) {
 
         next = pOldBufTable[slot].next;
-        // Allocate a new slot for the old page
+        // 为旧页分配一个新的槽位
         if ((rc = InternalAlloc(newSlot)))
             return (rc);
 
-        // Insert the page into the hash table,
-        // and initialize the page description entry
+        // 将页插入哈希表，并初始化页描述条目
         if ((rc = hashTable.Insert(pOldBufTable[slot].fd,
                                    pOldBufTable[slot].pageNum, newSlot)) ||
             (rc = InitPageDesc(pOldBufTable[slot].fd,
                                pOldBufTable[slot].pageNum, newSlot)))
             return (rc);
 
-        // Put the slot back on the free list before returning the error
+        // 在返回错误前，将该槽位重新放入空闲列表
         Unlink(newSlot);
         InsertFree(newSlot);
 
         slot = next;
     }
 
-    // Finally, delete the old buffer table
+    // 最后，删除旧的缓冲表
     delete [] pOldBufTable;
 
     return 0;
 }
 
-
 //
-// InsertFree
+// InsertFree方法
 //
-// Desc: Internal.  Insert a slot at the head of the free list
-// In:   slot - slot number to insert
-// Ret:  PF return code
+// 在空闲列表头部插入一个槽位。
 //
 RC PF_BufferMgr::InsertFree(int slot)
 {
     bufTable[slot].next = free;
     free = slot;
 
-    // Return ok
     return (0);
 }
 
 //
-// LinkHead
+// LinkHead方法
 //
-// Desc: Internal.  Insert a slot at the head of the used list, making
-//       it the most-recently used slot.
-// In:   slot - slot number to insert
-// Ret:  PF return code
+// 在已使用列表头部插入一个槽位，使其成为最近使用的页。
 //
 RC PF_BufferMgr::LinkHead(int slot)
 {
-    // Set next and prev pointers of slot entry
     bufTable[slot].next = first;
     bufTable[slot].prev = INVALID_SLOT;
 
-    // If list isn't empty, point old first back to slot
     if (first != INVALID_SLOT)
         bufTable[first].prev = slot;
 
     first = slot;
 
-    // if list was empty, set last to slot
     if (last == INVALID_SLOT)
         last = first;
 
-    // Return ok
     return (0);
 }
 
 //
-// Unlink
+// Unlink方法
 //
-// Desc: Internal.  Unlink the slot from the used list.  Assume that
-//       slot is valid.  Set prev and next pointers to INVALID_SLOT.
-//       The caller is responsible to either place the unlinked page into
-//       the free list or the used list.
-// In:   slot - slot number to unlink
-// Ret:  PF return code
+// 从已使用列表中 unlink 一个槽位。假设槽位有效。将 prev 和 next 指针设置为 INVALID_SLOT。
+// 调用者负责将 unlinked 页放入空闲列表或已使用列表。
 //
 RC PF_BufferMgr::Unlink(int slot)
 {
-    // If slot is at head of list, set first to next element
     if (first == slot)
         first = bufTable[slot].next;
 
-    // If slot is at end of list, set last to previous element
     if (last == slot)
         last = bufTable[slot].prev;
 
-    // If slot not at end of list, point next back to previous
     if (bufTable[slot].next != INVALID_SLOT)
         bufTable[bufTable[slot].next].prev = bufTable[slot].prev;
 
-    // If slot not at head of list, point prev forward to next
     if (bufTable[slot].prev != INVALID_SLOT)
         bufTable[bufTable[slot].prev].next = bufTable[slot].next;
 
-    // Set next and prev pointers of slot entry
     bufTable[slot].prev = bufTable[slot].next = INVALID_SLOT;
 
-    // Return ok
     return (0);
 }
 
 //
-// InternalAlloc
+// InternalAlloc方法
 //
-// Desc: Internal.  Allocate a buffer slot.  The slot is inserted at the
-//       head of the used list.  Here's how it chooses which slot to use:
-//       If there is something on the free list, then use it.
-//       Otherwise, choose a victim to replace.  If a victim cannot be
-//       chosen (because all the pages are pinned), then return an error.
-// Out:  slot - set to newly-allocated slot
-// Ret:  PF_NOBUF if all pages are pinned, other PF return code otherwise
+// 内部方法。分配一个缓冲区槽位。该槽位将被插入到已使用列表头部。
+// 这里是选择使用哪个槽位的方法：
+// 如果空闲列表中有槽位，则从空闲列表中选择一个。
+// 否则，选择一个受害者页来替换。如果无法选择受害者页（因为所有页都被固定），则返回错误。
 //
 RC PF_BufferMgr::InternalAlloc(int &slot)
 {
-    RC  rc;       // return code
+    RC  rc;       // 返回码
 
-    // If the free list is not empty, choose a slot from the free list
     if (free != INVALID_SLOT) {
         slot = free;
         free = bufTable[slot].next;
     }
     else {
 
-        // Choose the least-recently used page that is unpinned
         for (slot = last; slot != INVALID_SLOT; slot = bufTable[slot].prev) {
             if (bufTable[slot].pinCount == 0)
                 break;
         }
 
-        // Return error if all buffers were pinned
         if (slot == INVALID_SLOT)
             return (PF_NOBUF);
 
-        // Write out the page if it is dirty
+        // 如果页是脏页，写入磁盘
         if (bufTable[slot].bDirty) {
-            if ((rc = WritePage(bufTable[slot].fd, bufTable[slot].pageNum,
-                                bufTable[slot].pData)))
+            if ((rc = WritePage(bufTable[slot].fd, bufTable[slot].pageNum, bufTable[slot].pData)))
                 return (rc);
 
             bufTable[slot].bDirty = FALSE;
         }
 
-        // Remove page from the hash table and slot from the used buffer list
+        // 从哈希表中删除页，并将槽位从已使用缓冲列表中移除
         if ((rc = hashTable.Delete(bufTable[slot].fd, bufTable[slot].pageNum)) ||
             (rc = Unlink(slot)))
             return (rc);
     }
 
-    // Link slot at the head of the used list
+    // 将槽位链接到已使用列表头部
     if ((rc = LinkHead(slot)))
         return (rc);
 
-    // Return ok
     return (0);
 }
 
 //
-// ReadPage
+// ReadPage方法
 //
-// Desc: Read a page from disk
-//
-// In:   fd - OS file descriptor
-//       pageNum - number of page to read
-//       dest - pointer to buffer in which to read page
-// Out:  dest - buffer contains page contents
-// Ret:  PF return code
+// 从磁盘读取一个页。
 //
 RC PF_BufferMgr::ReadPage(int fd, PageNum pageNum, char *dest)
 {
-
 #ifdef PF_LOG
     char psMessage[100];
    sprintf (psMessage, "Reading (%d,%d).\n", fd, pageNum);
@@ -771,12 +685,10 @@ RC PF_BufferMgr::ReadPage(int fd, PageNum pageNum, char *dest)
     pStatisticsMgr->Register(PF_READPAGE, STAT_ADDONE);
 #endif
 
-    // seek to the appropriate place (cast to long for PC's)
     long offset = pageNum * (long)pageSize + PF_FILE_HDR_SIZE;
     if (lseek(fd, offset, L_SET) < 0)
         return (PF_UNIX);
 
-    // Read the data
     int numBytes = read(fd, dest, pageSize);
     if (numBytes < 0)
         return (PF_UNIX);
@@ -787,18 +699,12 @@ RC PF_BufferMgr::ReadPage(int fd, PageNum pageNum, char *dest)
 }
 
 //
-// WritePage
-//写入
-// Desc: Write a page to disk
+// WritePage方法
 //
-// In:   fd - OS file descriptor
-//       pageNum - number of page to write
-//       dest - pointer to buffer containing page contents
-// Ret:  PF return code
+// 将一个页写入磁盘。
 //
 RC PF_BufferMgr::WritePage(int fd, PageNum pageNum, char *source)
 {
-
 #ifdef PF_LOG
     char psMessage[100];
    sprintf (psMessage, "Writing (%d,%d).\n", fd, pageNum);
@@ -809,12 +715,10 @@ RC PF_BufferMgr::WritePage(int fd, PageNum pageNum, char *source)
     pStatisticsMgr->Register(PF_WRITEPAGE, STAT_ADDONE);
 #endif
 
-    // seek to the appropriate place (cast to long for PC's)
     long offset = pageNum * (long)pageSize + PF_FILE_HDR_SIZE;
     if (lseek(fd, offset, L_SET) < 0)
         return (PF_UNIX);
 
-    // Read the data
     int numBytes = write(fd, source, pageSize);
     if (numBytes < 0)
         return (PF_UNIX);
@@ -825,23 +729,17 @@ RC PF_BufferMgr::WritePage(int fd, PageNum pageNum, char *source)
 }
 
 //
-// InitPageDesc
+// InitPageDesc方法
 //
-// Desc: Internal.  Initialize PF_BufPageDesc to a newly-pinned page
-//       for a newly pinned page
-// In:   fd - file descriptor
-//       pageNum - page number
-// Ret:  PF return code
+// 内部方法。初始化一个新固定的页的PF_BufPageDesc条目。
 //
 RC PF_BufferMgr::InitPageDesc(int fd, PageNum pageNum, int slot)
 {
-    // set the slot to refer to a newly-pinned page
     bufTable[slot].fd       = fd;
     bufTable[slot].pageNum  = pageNum;
     bufTable[slot].bDirty   = FALSE;
     bufTable[slot].pinCount = 1;
 
-    // Return ok
     return (0);
 }
 
@@ -852,60 +750,50 @@ RC PF_BufferMgr::InitPageDesc(int fd, PageNum pageNum, int slot)
 #define MEMORY_FD -1
 
 //
-// GetBlockSize
+// GetBlockSize方法
 //
-// Return the size of the block that can be allocated.  This is simply
-// just the size of the page since a block will take up a page in the
-// buffer pool.
+// 返回可以分配的块大小。这里简单地返回页大小，因为块将占用缓冲池中的一页。
 //
 RC PF_BufferMgr::GetBlockSize(int &length) const
 {
     length = pageSize;
     return OK_RC;
 }
-//
 
 //
-// AllocateBlock
+// AllocateBlock方法
 //
-// Allocates a page in the buffer pool that is not associated with a
-// particular file and returns the pointer to the data area back to the
-// user.
+// 分配一个在缓冲池中不关联特定文件的页，并返回指向数据区域的指针。
 //
 RC PF_BufferMgr::AllocateBlock(char *&buffer)
 {
     RC rc = OK_RC;
 
-    // Get an empty slot from the buffer pool
     int slot;
     if ((rc = InternalAlloc(slot)) != OK_RC)
         return rc;
 
-    // Create artificial page number (just needs to be unique for hash table)
     PageNum pageNum = reinterpret_cast<intptr_t>(bufTable[slot].pData);
 
-    // Insert the page into the hash table, and initialize the page description entry
     if ((rc = hashTable.Insert(MEMORY_FD, pageNum, slot) != OK_RC) ||
         (rc = InitPageDesc(MEMORY_FD, pageNum, slot)) != OK_RC) {
-        // Put the slot back on the free list before returning the error
         Unlink(slot);
         InsertFree(slot);
         return rc;
     }
 
-    // Return pointer to buffer
     buffer = bufTable[slot].pData;
 
-    // Return success code
     return OK_RC;
 }
 
 //
-// DisposeBlock
+// DisposeBlock方法
 //
-// Free the block of memory from the buffer pool.
+// 释放缓冲池中的内存块。
 //
 RC PF_BufferMgr::DisposeBlock(char* buffer)
 {
     return UnpinPage(MEMORY_FD, reinterpret_cast<intptr_t>(buffer));
 }
+
