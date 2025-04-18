@@ -39,49 +39,33 @@ PF_Manager::~PF_Manager()
 //----------------------------------------------
 RC PF_Manager::CreateFile(const char *fileName)
 {
-    int fd;            // UNIX 文件描述符
-    int numBytes;      // 写入系统调用的返回码
-
-    // 创建独占使用的文件
-    if ((fd = open(fileName,
-#ifdef PC
-            O_BINARY |   // Windows平台需要二进制模式
-#endif
-                   O_CREAT | O_EXCL | O_WRONLY,  // 创建新文件，独占写入
-                   CREATION_MASK)) < 0)          // 文件权限掩码
-        return (PF_UNIX);  // 返回UNIX错误
-
-    // 初始化文件头：必须在内存中保留PF_FILE_HDR_SIZE字节
-    // 尽管实际FileHdr的大小更小
-    char hdrBuf[PF_FILE_HDR_SIZE];
-
-    // 清除内存以避免Purify警告
-    memset(hdrBuf, 0, PF_FILE_HDR_SIZE);
-
-    // 设置文件头信息
+    int fd;
+    int numBytes;
+    if ((fd = _open(fileName,
+                    _O_BINARY | _O_CREAT | _O_EXCL | _O_WRONLY,
+                    _S_IREAD | _S_IWRITE)) < 0)
+    {
+        return (PF_UNIX);
+    }
+    char hdrBuf[PF_FILE_HDR_SIZE] = {0};
     PF_FileHdr *hdr = (PF_FileHdr*)hdrBuf;
-    hdr->firstFree = PF_PAGE_LIST_END;  // 初始空闲页列表结束
-    hdr->numPages = 0;                  // 初始页数为0
-
+    hdr->firstFree = PF_PAGE_LIST_END;
+    hdr->numPages = 0;
     // 将文件头写入文件
-    if((numBytes = write(fd, hdrBuf, PF_FILE_HDR_SIZE))
-       != PF_FILE_HDR_SIZE) {
-
+    if ((numBytes = _write(fd, hdrBuf, PF_FILE_HDR_SIZE)) != PF_FILE_HDR_SIZE)
+    {
         // 写入错误：关闭并删除文件
-        close(fd);
-        unlink(fileName);
-
+        _close(fd);
+        _unlink(fileName);
         // 返回错误码
-        if(numBytes < 0)
-            return (PF_UNIX);    // UNIX系统错误
+        if (numBytes < 0)
+            return (PF_UNIX);    // 系统错误
         else
             return (PF_HDRWRITE); // 文件头写入不完整
     }
-
     // 关闭文件
-    if(close(fd) < 0)
+    if (_close(fd) < 0)
         return (PF_UNIX);
-
     // 返回成功
     return (0);
 }

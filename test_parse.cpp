@@ -66,6 +66,7 @@ int main() {
     std::cout << "7. ALTER TABLE tablename MODIFY column type" << std::endl;
     std::cout << "输入 'exit' 退出" << std::endl;
 
+//    TestPF();
     while (true) {
         std::cout << "\nGuoShuBase> ";
         std::getline(std::cin, sql);
