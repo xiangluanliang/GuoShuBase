@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 #project(GuoShuBase)
 set(CMAKE_CXX_STANDARD 17)
 add_definitions(-DPC)
+add_definitions(-DPF_LOG)
 #add_executable(GuoShuBase test.cpp
 #        pf_pagehandle.cpp
 #        pf_filehandle.cpp
