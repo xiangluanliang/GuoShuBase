@@ -1,513 +1,443 @@
-//
-// File:        pf_filehandle.cc
-// Description: PF_FileHandle class implementation
-// Authors:     Hugo Rivero (rivero@cs.stanford.edu)
-//              Dallan Quass (quass@cs.stanford.edu)
-//
-
 #include <unistd.h>
 #include <sys/types.h>
 #include "pf_internal.h"
 #include "pf_buffermgr.h"
-#include "iostream"
+#include <iostream>
 using namespace std;
 
-//
-// PF_FileHandle
-//
-// Desc: Default constructor for a file handle object
-//       A File object provides access to an open file.
-//       It is used to allocate, dispose and fetch pages.
-//       It is constructed here but must be passed to PF_Manager::OpenFile() in
-//       order to be used to access the pages of a file.
-//       It should be passed to PF_Manager::CloseFile() to close the file.
-//       A file handle object contains a pointer to the file data stored
-//       in the file table managed by PF_Manager.  It passes the file's unix
-//       file descriptor to the buffer manager to access pages of the file.
-//
+//----------------------------------------------
+// PF_FileHandle 构造函数
+// 描述: 文件句柄对象的默认构造函数
+//       文件对象提供对已打开文件的访问
+//       用于分配、释放和获取页面
+//       必须传递给PF_Manager::OpenFile()才能访问文件页面
+//       应传递给PF_Manager::CloseFile()来关闭文件
+//       包含指向文件表中文件数据的指针
+//       将文件的UNIX文件描述符传递给缓冲区管理器以访问文件页面
+//----------------------------------------------
 PF_FileHandle::PF_FileHandle()
 {
-   // Initialize local variables
-   bFileOpen = FALSE;
-   pBufferMgr = NULL;
+    // 初始化成员变量
+    bFileOpen = FALSE;    // 文件未打开
+    pBufferMgr = NULL;    // 缓冲区管理器指针为空
 }
 
-//
-// ~PF_FileHandle
-//
-// Desc: Destroy the file handle object
-//       If the file handle object refers to an open file, the file will
-//       NOT be closed.
-//
+//----------------------------------------------
+// PF_FileHandle 析构函数
+// 描述: 销毁文件句柄对象
+//       如果文件句柄引用已打开的文件，文件不会被关闭
+//----------------------------------------------
 PF_FileHandle::~PF_FileHandle()
 {
-   // Don't need to do anything
+    // 无需任何操作
 }
 
-//
-// PF_FileHandle
-//
-// Desc: copy constructor
-// In:   fileHandle - file handle object from which to construct this object
-//
+//----------------------------------------------
+// PF_FileHandle 拷贝构造函数
+// 输入: fileHandle - 用于构造本对象的文件句柄
+//----------------------------------------------
 PF_FileHandle::PF_FileHandle(const PF_FileHandle &fileHandle)
 {
-   // Just copy the data members since there is no memory allocation involved
-   this->pBufferMgr  = fileHandle.pBufferMgr;
-   this->hdr         = fileHandle.hdr;
-   this->bFileOpen   = fileHandle.bFileOpen;
-   this->bHdrChanged = fileHandle.bHdrChanged;
-   this->unixfd      = fileHandle.unixfd;
+    // 直接复制成员变量，不涉及内存分配
+    this->pBufferMgr  = fileHandle.pBufferMgr;
+    this->hdr         = fileHandle.hdr;
+    this->bFileOpen   = fileHandle.bFileOpen;
+    this->bHdrChanged = fileHandle.bHdrChanged;
+    this->unixfd      = fileHandle.unixfd;
 }
 
-//
-// operator=
-//
-// Desc: overload = operator
-//       If this file handle object refers to an open file, the file will
-//       NOT be closed.
-// In:   fileHandle - file handle object to set this object equal to
-// Ret:  reference to *this
-//
-PF_FileHandle& PF_FileHandle::operator= (const PF_FileHandle &fileHandle)
+//----------------------------------------------
+// operator= 赋值运算符重载
+// 描述: 如果本文件句柄引用已打开文件，文件不会被关闭
+// 输入: fileHandle - 要赋值的文件句柄对象
+// 返回: 返回*this的引用
+//----------------------------------------------
+PF_FileHandle& PF_FileHandle::operator=(const PF_FileHandle &fileHandle)
 {
-   // Test for self-assignment
-   if (this != &fileHandle) {
-
-      // Just copy the members since there is no memory allocation involved
-      this->pBufferMgr  = fileHandle.pBufferMgr;
-      this->hdr         = fileHandle.hdr;
-      this->bFileOpen   = fileHandle.bFileOpen;
-      this->bHdrChanged = fileHandle.bHdrChanged;
-      this->unixfd      = fileHandle.unixfd;
-   }
-   // Return a reference to this
-   return (*this);
+    // 检查自赋值
+    if (this != &fileHandle) {
+        // 直接复制成员变量，不涉及内存分配
+        this->pBufferMgr  = fileHandle.pBufferMgr;
+        this->hdr         = fileHandle.hdr;
+        this->bFileOpen   = fileHandle.bFileOpen;
+        this->bHdrChanged = fileHandle.bHdrChanged;
+        this->unixfd      = fileHandle.unixfd;
+    }
+    return (*this);
 }
 
-//
-// GetFirstPage
-//
-// Desc: Get the first page in a file
-//       The file handle must refer to an open file
-// Out:  pageHandle - becomes a handle to the first page of the file
-//       The referenced page is pinned in the buffer pool.
-// Ret:  PF return code
-//
+//----------------------------------------------
+// 获取首页
+// 描述: 获取文件的第一页
+//       文件句柄必须引用已打开的文件
+// 输出: pageHandle - 成为文件第一页的句柄
+//       引用的页面在缓冲池中被固定
+// 返回: PF返回码
+//----------------------------------------------
 RC PF_FileHandle::GetFirstPage(PF_PageHandle &pageHandle) const
 {
-   return (GetNextPage((PageNum)-1, pageHandle));
+    return (GetNextPage((PageNum)-1, pageHandle));
 }
 
-//
-// GetLastPage
-//
-// Desc: Get the last page in a file
-//       The file handle must refer to an open file
-// Out:  pageHandle - becomes a handle to the last page of the file
-//       The referenced page is pinned in the buffer pool.
-// Ret:  PF return code
-//
+//----------------------------------------------
+// 获取末页
+// 描述: 获取文件的最后一页
+//       文件句柄必须引用已打开的文件
+// 输出: pageHandle - 成为文件最后一页的句柄
+//       引用的页面在缓冲池中被固定
+// 返回: PF返回码
+//----------------------------------------------
 RC PF_FileHandle::GetLastPage(PF_PageHandle &pageHandle) const
 {
-   return (GetPrevPage((PageNum)hdr.numPages, pageHandle));
+    return (GetPrevPage((PageNum)hdr.numPages, pageHandle));
 }
 
-//
-// GetNextPage
-//
-// Desc: Get the next (valid) page after current
-//       The file handle must refer to an open file
-// In:   current - get the next valid page after this page number
-//       current can refer to a page that has been disposed
-// Out:  pageHandle - becomes a handle to the next page of the file
-//       The referenced page is pinned in the buffer pool.
-// Ret:  PF_EOF, or another PF return code
-//
+//----------------------------------------------
+// 获取下一页
+// 描述: 获取当前页之后的下一页(有效页)
+//       文件句柄必须引用已打开的文件
+// 输入: current - 获取此页号之后的有效页
+//       current可以引用已被释放的页面
+// 输出: pageHandle - 成为文件下一页的句柄
+//       引用的页面在缓冲池中被固定
+// 返回: PF_EOF或其他PF返回码
+//----------------------------------------------
 RC PF_FileHandle::GetNextPage(PageNum current, PF_PageHandle &pageHandle) const
 {
-   int rc;               // return code
+    int rc;  // 返回码
 
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // Validate page number (note that -1 is acceptable here)
-   if (current != -1 &&  !IsValidPageNum(current))
-      return (PF_INVALIDPAGE);
+    // 验证页号(-1是可接受的)
+    if (current != -1 && !IsValidPageNum(current))
+        return (PF_INVALIDPAGE);
 
-   // Scan the file until a valid used page is found
-   for (current++; current < hdr.numPages; current++) {
+    // 扫描文件直到找到有效页
+    for (current++; current < hdr.numPages; current++) {
+        // 如果是有效页，返回成功
+        if (!(rc = GetThisPage(current, pageHandle)))
+            return (0);
 
-      // If this is a valid (used) page, we're done
-      if (!(rc = GetThisPage(current, pageHandle)))
-         return (0);
+        // 如果是意外错误，返回
+        if (rc != PF_INVALIDPAGE)
+            return (rc);
+    }
 
-      // If unexpected error, return it
-      if (rc != PF_INVALIDPAGE)
-         return (rc);
-   }
-
-   // No valid (used) page found
-   return (PF_EOF);
+    // 未找到有效页
+    return (PF_EOF);
 }
 
-//
-// GetPrevPage
-//
-// Desc: Get the prev (valid) page after current
-//       The file handle must refer to an open file
-// In:   current - get the prev valid page before this page number
-//       current can refer to a page that has been disposed
-// Out:  pageHandle - becomes a handle to the prev page of the file
-//       The referenced page is pinned in the buffer pool.
-// Ret:  PF_EOF, or another PF return code
-//
+//----------------------------------------------
+// 获取上一页
+// 描述: 获取当前页之前的上一页(有效页)
+//       文件句柄必须引用已打开的文件
+// 输入: current - 获取此页号之前的有效页
+//       current可以引用已被释放的页面
+// 输出: pageHandle - 成为文件上一页的句柄
+//       引用的页面在缓冲池中被固定
+// 返回: PF_EOF或其他PF返回码
+//----------------------------------------------
 RC PF_FileHandle::GetPrevPage(PageNum current, PF_PageHandle &pageHandle) const
 {
-   int rc;               // return code
+    int rc;  // 返回码
 
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // Validate page number (note that hdr.numPages is acceptable here)
-   if (current != hdr.numPages &&  !IsValidPageNum(current))
-      return (PF_INVALIDPAGE);
+    // 验证页号(hdr.numPages是可接受的)
+    if (current != hdr.numPages && !IsValidPageNum(current))
+        return (PF_INVALIDPAGE);
 
-   // Scan the file until a valid used page is found
-   for (current--; current >= 0; current--) {
+    // 扫描文件直到找到有效页
+    for (current--; current >= 0; current--) {
+        // 如果是有效页，返回成功
+        if (!(rc = GetThisPage(current, pageHandle)))
+            return (0);
 
-      // If this is a valid (used) page, we're done
-      if (!(rc = GetThisPage(current, pageHandle)))
-         return (0);
+        // 如果是意外错误，返回
+        if (rc != PF_INVALIDPAGE)
+            return (rc);
+    }
 
-      // If unexpected error, return it
-      if (rc != PF_INVALIDPAGE)
-         return (rc);
-   }
-
-   // No valid (used) page found
-   return (PF_EOF);
+    // 未找到有效页
+    return (PF_EOF);
 }
 
-//
-// GetThisPage
-//
-// Desc: Get a specific page in a file
-//       The file handle must refer to an open file
-// In:   pageNum - the number of the page to get
-// Out:  pageHandle - becomes a handle to the this page of the file
-//                    this function modifies local var's in pageHandle
-//       The referenced page is pinned in the buffer pool.
-// Ret:  PF return code
-//
+//----------------------------------------------
+// 获取指定页
+// 描述: 获取文件中的特定页
+//       文件句柄必须引用已打开的文件
+// 输入: pageNum - 要获取的页号
+// 输出: pageHandle - 成为该页的句柄
+//       修改pageHandle中的局部变量
+//       引用的页面在缓冲池中被固定
+// 返回: PF返回码
+//----------------------------------------------
 RC PF_FileHandle::GetThisPage(PageNum pageNum, PF_PageHandle &pageHandle) const
 {
-   int  rc;               // return code
-   char *pPageBuf;        // address of page in buffer pool
+    int rc;                // 返回码
+    char *pPageBuf;        // 缓冲池中页面的地址
 
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // Validate page number
-   if (!IsValidPageNum(pageNum))
-      return (PF_INVALIDPAGE);
+    // 验证页号
+    if (!IsValidPageNum(pageNum))
+        return (PF_INVALIDPAGE);
 
-   // Get this page from the buffer manager
-   if ((rc = pBufferMgr->GetPage(unixfd, pageNum, &pPageBuf)))
-      return (rc);
+    // 从缓冲区管理器获取该页
+    if ((rc = pBufferMgr->GetPage(unixfd, pageNum, &pPageBuf)))
+        return (rc);
 
-   // If the page is valid, then set pageHandle to this page and return ok
-   if (((PF_PageHdr*)pPageBuf)->nextFree == PF_PAGE_USED) {
+    // 如果是有效页，设置pageHandle并返回成功
+    if (((PF_PageHdr*)pPageBuf)->nextFree == PF_PAGE_USED) {
+        pageHandle.pageNum = pageNum;
+        pageHandle.pPageData = pPageBuf + sizeof(PF_PageHdr);
+        return (0);
+    }
 
-      // Set the pageHandle local variables
-      pageHandle.pageNum = pageNum;
-      pageHandle.pPageData = pPageBuf + sizeof(PF_PageHdr);
+    // 如果是无效页，解固定并返回错误
+    if ((rc = UnpinPage(pageNum)))
+        return (rc);
 
-      // Return ok
-      return (0);
-   }
-
-   // If the page is *not* a valid one, then unpin the page
-   if ((rc = UnpinPage(pageNum)))
-      return (rc);
-
-   return (PF_INVALIDPAGE);
+    return (PF_INVALIDPAGE);
 }
 
-//
-// AllocatePage
-//
-// Desc: Allocate a new page in the file (may get a page which was
-//       previously disposed)
-//       The file handle must refer to an open file
-// Out:  pageHandle - becomes a handle to the newly-allocated page
-//                    this function modifies local var's in pageHandle
-// Ret:  PF return code
-//
+//----------------------------------------------
+// 分配新页
+// 描述: 在文件中分配新页(可能获取之前释放的页)
+//       文件句柄必须引用已打开的文件
+// 输出: pageHandle - 成为新分配页的句柄
+//       修改pageHandle中的局部变量
+// 返回: PF返回码
+//----------------------------------------------
 RC PF_FileHandle::AllocatePage(PF_PageHandle &pageHandle)
 {
-   int     rc;               // return code
-   int     pageNum;          // new-page number
-   char    *pPageBuf;        // address of page in buffer pool
+    int rc;                // 返回码
+    int pageNum;           // 新页号
+    char *pPageBuf;        // 缓冲池中页面的地址
 
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // If the free list isn't empty...
-   if (hdr.firstFree != PF_PAGE_LIST_END) {
-      pageNum = hdr.firstFree;
+    // 如果空闲列表不为空...
+    if (hdr.firstFree != PF_PAGE_LIST_END) {
+        pageNum = hdr.firstFree;
 
-      // Get the first free page into the buffer
-      if ((rc = pBufferMgr->GetPage(unixfd,
-            pageNum,
-            &pPageBuf)))
-         return (rc);
+        // 获取第一个空闲页到缓冲区
+        if ((rc = pBufferMgr->GetPage(unixfd, pageNum, &pPageBuf)))
+            return (rc);
 
-      // Set the first free page to the next page on the free list
-      hdr.firstFree = ((PF_PageHdr*)pPageBuf)->nextFree;
-   }
-   else {
+        // 设置第一个空闲页为列表中下一页
+        hdr.firstFree = ((PF_PageHdr*)pPageBuf)->nextFree;
+    }
+    else {
+        // 空闲列表为空...
+        pageNum = hdr.numPages;
 
-      // The free list is empty...
-      pageNum = hdr.numPages;
+        // 在文件中分配新页
+        if ((rc = pBufferMgr->AllocatePage(unixfd, pageNum, &pPageBuf)))
+            return (rc);
 
-      // Allocate a new page in the file
-      if ((rc = pBufferMgr->AllocatePage(unixfd,
-            pageNum,
-            &pPageBuf)))
-         return (rc);
+        // 增加文件页数
+        hdr.numPages++;
+    }
 
-      // Increment the number of pages for this file
-      hdr.numPages++;
-   }
+    // 标记文件头已修改
+    bHdrChanged = TRUE;
 
-   // Mark the header as changed
-   bHdrChanged = TRUE;
+    // 标记该页为已使用
+    ((PF_PageHdr *)pPageBuf)->nextFree = PF_PAGE_USED;
 
-   // Mark this page as used
-   ((PF_PageHdr *)pPageBuf)->nextFree = PF_PAGE_USED;
+    // 清空页面数据
+    memset(pPageBuf + sizeof(PF_PageHdr), 0, PF_PAGE_SIZE);
 
-   // Zero out the page data
-   memset(pPageBuf + sizeof(PF_PageHdr), 0, PF_PAGE_SIZE);
+    // 标记页面为脏(因为修改了next指针)
+    if ((rc = MarkDirty(pageNum)))
+        return (rc);
 
-   // Mark the page dirty because we changed the next pointer
-   if ((rc = MarkDirty(pageNum)))
-      return (rc);
+    // 设置pageHandle
+    pageHandle.pageNum = pageNum;
+    pageHandle.pPageData = pPageBuf + sizeof(PF_PageHdr);
 
-   // Set the pageHandle local variables
-   pageHandle.pageNum = pageNum;
-   pageHandle.pPageData = pPageBuf + sizeof(PF_PageHdr);
-
-   // Return ok
-   return (0);
+    return (0);
 }
 
-//
-// DisposePage
-//
-// Desc: Dispose of a page
-//       The file handle must refer to an open file
-//       PF_PageHandle objects referring to this page should not be used
-//       after making this call.
-// In:   pageNum - number of page to dispose
-// Ret:  PF return code
-//
+//----------------------------------------------
+// 释放页面
+// 描述: 释放一个页面
+//       文件句柄必须引用已打开的文件
+//       引用此页的PF_PageHandle对象在此调用后不应再使用
+// 输入: pageNum - 要释放的页号
+// 返回: PF返回码
+//----------------------------------------------
 RC PF_FileHandle::DisposePage(PageNum pageNum)
 {
-   int     rc;               // return code
-   char    *pPageBuf;        // address of page in buffer pool
+    int rc;                // 返回码
+    char *pPageBuf;        // 缓冲池中页面的地址
 
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // Validate page number
-   if (!IsValidPageNum(pageNum))
-      return (PF_INVALIDPAGE);
+    // 验证页号
+    if (!IsValidPageNum(pageNum))
+        return (PF_INVALIDPAGE);
 
-   // Get the page (but don't re-pin it if it's already pinned)
-   if ((rc = pBufferMgr->GetPage(unixfd,
-         pageNum,
-         &pPageBuf,
-         FALSE)))
-      return (rc);
+    // 获取页面(如果已固定则不重新固定)
+    if ((rc = pBufferMgr->GetPage(unixfd, pageNum, &pPageBuf, FALSE)))
+        return (rc);
 
-   // Page must be valid (used)
-   if (((PF_PageHdr *)pPageBuf)->nextFree != PF_PAGE_USED) {
+    // 页面必须是有效的(已使用)
+    if (((PF_PageHdr *)pPageBuf)->nextFree != PF_PAGE_USED) {
+        // 解固定页面
+        if ((rc = UnpinPage(pageNum)))
+            return (rc);
+        return (PF_PAGEFREE);  // 页面已空闲
+    }
 
-      // Unpin the page
-      if ((rc = UnpinPage(pageNum)))
-         return (rc);
+    // 将此页放入空闲列表
+    ((PF_PageHdr *)pPageBuf)->nextFree = hdr.firstFree;
+    hdr.firstFree = pageNum;
+    bHdrChanged = TRUE;
 
-      // Return page already free
-      return (PF_PAGEFREE);
-   }
+    // 标记页面为脏(因为修改了next指针)
+    if ((rc = MarkDirty(pageNum)))
+        return (rc);
 
-   // Put this page onto the free list
-   ((PF_PageHdr *)pPageBuf)->nextFree = hdr.firstFree;
-   hdr.firstFree = pageNum;
-   bHdrChanged = TRUE;
+    // 解固定页面
+    if ((rc = UnpinPage(pageNum)))
+        return (rc);
 
-   // Mark the page dirty because we changed the next pointer
-   if ((rc = MarkDirty(pageNum)))
-      return (rc);
-
-   // Unpin the page
-   if ((rc = UnpinPage(pageNum)))
-      return (rc);
-
-   // Return ok
-   return (0);
+    return (0);
 }
 
-//
-// MarkDirty
-//
-// Desc: Mark a page as being dirty
-//       The page will then be written back to disk when it is removed from
-//       the page buffer
-//       The file handle must refer to an open file
-// In:   pageNum - number of page to mark dirty
-// Ret:  PF return code
-//
+//----------------------------------------------
+// 标记页面为脏
+// 描述: 将页面标记为脏
+//       页面在从页面缓冲区移除时将被写回磁盘
+//       文件句柄必须引用已打开的文件
+// 输入: pageNum - 要标记为脏的页号
+// 返回: PF返回码
+//----------------------------------------------
 RC PF_FileHandle::MarkDirty(PageNum pageNum) const
 {
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // Validate page number
-   if (!IsValidPageNum(pageNum))
-      return (PF_INVALIDPAGE);
+    // 验证页号
+    if (!IsValidPageNum(pageNum))
+        return (PF_INVALIDPAGE);
 
-   // Tell the buffer manager to mark the page dirty
-   return (pBufferMgr->MarkDirty(unixfd, pageNum));
+    // 通知缓冲区管理器标记页面为脏
+    return (pBufferMgr->MarkDirty(unixfd, pageNum));
 }
 
-//
-// UnpinPage
-//
-// Desc: Unpin a page from the buffer manager.
-//       The page is then free to be written back to disk when necessary.
-//       PF_PageHandle objects referring to this page should not be used
-//       after making this call.
-//       The file handle must refer to an open file.
-// In:   pageNum - number of the page to unpin
-// Ret:  PF return code
-//
+//----------------------------------------------
+// 解固定页面
+// 描述: 从缓冲区管理器解固定页面
+//       页面可以被写回磁盘
+//       引用此页的PF_PageHandle对象在此调用后不应再使用
+//       文件句柄必须引用已打开的文件
+// 输入: pageNum - 要解固定的页号
+// 返回: PF返回码
+//----------------------------------------------
 RC PF_FileHandle::UnpinPage(PageNum pageNum) const
 {
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // Validate page number
-   if (!IsValidPageNum(pageNum))
-      return (PF_INVALIDPAGE);
+    // 验证页号
+    if (!IsValidPageNum(pageNum))
+        return (PF_INVALIDPAGE);
 
-   // Tell the buffer manager to unpin the page
-   return (pBufferMgr->UnpinPage(unixfd, pageNum));
+    // 通知缓冲区管理器解固定页面
+    return (pBufferMgr->UnpinPage(unixfd, pageNum));
 }
 
-//
-// FlushPages
-//
-// Desc: Flush all dirty unpinned pages from the buffer manager for this file
-// In:   Nothing
-// Ret:  PF_PAGEFIXED warning from buffer manager if pages are pinned or
-//       other PF error
-//
+//----------------------------------------------
+// 刷新页面
+// 描述: 刷新此文件所有脏的未固定页面
+// 输入: 无
+// 返回: 如果页面被固定则返回PF_PAGEFIXED警告或其他PF错误
+//----------------------------------------------
 RC PF_FileHandle::FlushPages() const
 {
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // If the file header has changed, write it back to the file
-   if (bHdrChanged) {
+    // 如果文件头已修改，写回文件
+    if (bHdrChanged) {
+        // 定位到文件开头
+        if (lseek(unixfd, 0, L_SET) < 0)
+            return (PF_UNIX);
 
-      // First seek to the appropriate place
-		 if (lseek(unixfd, 0, L_SET) < 0) {
-			 return (PF_UNIX);
-		 }
-      // Write header
-      int numBytes = write(unixfd,
-            (char *)&hdr,
-            sizeof(PF_FileHdr));
-      if (numBytes < 0)
-         return (PF_UNIX);
-      if (numBytes != sizeof(PF_FileHdr))
-         return (PF_HDRWRITE);
+        // 写入文件头
+        int numBytes = write(unixfd, (char *)&hdr, sizeof(PF_FileHdr));
+        if (numBytes < 0)
+            return (PF_UNIX);
+        if (numBytes != sizeof(PF_FileHdr))
+            return (PF_HDRWRITE);
 
-      // This function is declared const, but we need to change the
-      // bHdrChanged variable.  Cast away the constness
-      PF_FileHandle *dummy = (PF_FileHandle *)this;
-      dummy->bHdrChanged = FALSE;
-   }
+        // 去除const属性修改bHdrChanged
+        PF_FileHandle *dummy = (PF_FileHandle *)this;
+        dummy->bHdrChanged = FALSE;
+    }
 
-   // Tell Buffer Manager to flush pages
-   return (pBufferMgr->FlushPages(unixfd));
+    // 通知缓冲区管理器刷新页面
+    return (pBufferMgr->FlushPages(unixfd));
 }
 
-//
-// ForcePages
-//
-// Desc: If a page is dirty then force the page from the buffer pool
-//       onto disk.  The page will not be forced out of the buffer pool.
-// In:   The page number, a default value of ALL_PAGES will be used if
-//       the client doesn't provide a value.  This will force all pages.
-// Ret:  Standard PF errors
-//
-//
+//----------------------------------------------
+// 强制写回页面
+// 描述: 如果页面是脏的，强制将其从缓冲池写入磁盘
+//       页面不会从缓冲池中移除
+// 输入: 页号，默认ALL_PAGES将强制所有页面
+// 返回: 标准PF错误
+//----------------------------------------------
 RC PF_FileHandle::ForcePages(PageNum pageNum) const
 {
-   // File must be open
-   if (!bFileOpen)
-      return (PF_CLOSEDFILE);
+    // 文件必须已打开
+    if (!bFileOpen)
+        return (PF_CLOSEDFILE);
 
-   // If the file header has changed, write it back to the file
-   if (bHdrChanged) {
+    // 如果文件头已修改，写回文件
+    if (bHdrChanged) {
+        // 定位到文件开头
+        if (lseek(unixfd, 0, L_SET) < 0)
+            return (PF_UNIX);
 
-      // First seek to the appropriate place
-      if (lseek(unixfd, 0, L_SET) < 0)
-         return (PF_UNIX);
+        // 写入文件头
+        int numBytes = write(unixfd, (char *)&hdr, sizeof(PF_FileHdr));
+        if (numBytes < 0)
+            return (PF_UNIX);
+        if (numBytes != sizeof(PF_FileHdr))
+            return (PF_HDRWRITE);
 
-      // Write header
-      int numBytes = write(unixfd,
-            (char *)&hdr,
-            sizeof(PF_FileHdr));
-      if (numBytes < 0)
-         return (PF_UNIX);
-      if (numBytes != sizeof(PF_FileHdr))
-         return (PF_HDRWRITE);
+        // 去除const属性修改bHdrChanged
+        PF_FileHandle *dummy = (PF_FileHandle *)this;
+        dummy->bHdrChanged = FALSE;
+    }
 
-      // This function is declared const, but we need to change the
-      // bHdrChanged variable.  Cast away the constness
-      PF_FileHandle *dummy = (PF_FileHandle *)this;
-      dummy->bHdrChanged = FALSE;
-   }
-
-   // Tell Buffer Manager to Force the page
-   return (pBufferMgr->ForcePages(unixfd, pageNum));
+    // 通知缓冲区管理器强制写回页面
+    return (pBufferMgr->ForcePages(unixfd, pageNum));
 }
 
-
-//
-// IsValidPageNum
-//
-// Desc: Internal.  Return TRUE if pageNum is a valid page number
-//       in the file, FALSE otherwise
-// In:   pageNum - page number to test
-// Ret:  TRUE or FALSE
-//
+//----------------------------------------------
+// 验证页号有效性(内部方法)
+// 描述: 如果pageNum是文件中的有效页号返回TRUE，否则FALSE
+// 输入: pageNum - 要测试的页号
+// 返回: TRUE或FALSE
+//----------------------------------------------
 int PF_FileHandle::IsValidPageNum(PageNum pageNum) const
 {
-   return (bFileOpen &&
-         pageNum >= 0 &&
-         pageNum < hdr.numPages);
+    return (bFileOpen && pageNum >= 0 && pageNum < hdr.numPages);
 }
-

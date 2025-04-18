@@ -21,6 +21,7 @@
 const int PF_BUFFER_SIZE = 40;     // Number of pages in the buffer
 const int PF_HASH_TBL_SIZE = 20;   // Size of hash table
 
+#define CREATION_MASK      0600
 #define PF_PAGE_LIST_END  -1       // end of list of free pages
 #define PF_PAGE_USED      -2       // page is being used
 

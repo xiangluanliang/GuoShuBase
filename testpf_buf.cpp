@@ -13,7 +13,7 @@
 
 using namespace std;
 
-const char* TEST_FILE = "D:\\Code\\HomeWork\\DataBaseShiXun_cxd\\GuoShuBase\\buffer_test.data";;
+const char* TEST_FILE = "buffer_test.data";;
 const int TEST_PAGE = 1;
 const char* TEST_DATA = "Hello Buffer Manager!";
 
@@ -46,15 +46,16 @@ int main() {
     }
     bufferMgr.PrintBuffer();    // 验证数据
     if (strcmp(readBuffer, TEST_DATA) != 0) {
-        cerr << "数据验证失败!" << endl;
+        cerr << "数据验证失败" << endl;
         cerr << "预期: " << TEST_DATA << endl;
         cerr << "实际: " << readBuffer << endl;
     } else {
-        cout << "√ 数据验证成功!" << endl;
+        cout << readBuffer;
+        cout << "数据验证成功!" << endl;
     }
 
     // 清理
-    cout << bufferMgr.UnpinPage(fd, TEST_PAGE);
+    bufferMgr.UnpinPage(fd, TEST_PAGE);
     bufferMgr.FlushPages(fd);
 //    close(fd);
     unlink(TEST_FILE);

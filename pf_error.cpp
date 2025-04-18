@@ -62,7 +62,7 @@ void PF_PrintError(RC rc)
 #ifdef PC
       cerr << "OS error\n";
 #else
-      cerr << strerror(errno) << "\n";
+      cerr <<  "strerror(errno)\n"; //strerror(errno) <<
 #endif
   else if (rc == 0)
     cerr << "PF_PrintError called with return code of 0\n";

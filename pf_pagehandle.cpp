@@ -1,125 +1,101 @@
-//
-// File:        pf_pagehandle.cc
-// Description: PF_PageHandle class implementation
-// Authors:     Hugo Rivero (rivero@cs.stanford.edu)
-//              Dallan Quass (quass@cs.stanford.edu)
-//
-
 #include "pf_internal.h"
+//----------------------------------------------
+// 常量定义
+//----------------------------------------------
+#define INVALID_PAGE   (-1)  // 无效页面标识
 
-//
-// Defines
-//
-#define INVALID_PAGE   (-1)
-
-//
-// PF_PageHandle
-//
-// Desc: Default constructor for a page handle object
-//       A page handle object provides access to the contents of a page
-//       and the page's page number.  The page handle object is constructed
-//       here but it must be passed to one of the PF_FileHandle methods to
-//       have it refer to a pinned page before it can be used to access the
-//       contents of a page.  Remember to call PF_FileHandle::UnpinPage()
-//       to unpin the page when you are finished accessing it.
-//
+//----------------------------------------------
+// PF_PageHandle 构造函数
+// 描述: 页面句柄对象的默认构造函数
+//       页面句柄对象提供对页面内容和页面号的访问
+//       虽然在此构造页面句柄对象，但必须将其传递给PF_FileHandle的方法之一
+//       才能使其引用已固定的页面，然后才能用于访问页面内容
+//       注意：访问完成后记得调用PF_FileHandle::UnpinPage()解固定页面
+//----------------------------------------------
 PF_PageHandle::PF_PageHandle()
 {
-  pageNum = INVALID_PAGE;
-  pPageData = NULL;
+    pageNum = INVALID_PAGE;  // 初始化为无效页面号
+    pPageData = NULL;        // 初始化为空指针
 }
 
-//
-// ~PF_PageHandle
-//
-// Desc: Destroy the page handle object.
-//       If the page handle object refers to a pinned page, the page will
-//       NOT be unpinned.
-//
+//----------------------------------------------
+// PF_PageHandle 析构函数
+// 描述: 销毁页面句柄对象
+//       如果页面句柄对象引用已固定的页面，该页面不会被解固定
+//----------------------------------------------
 PF_PageHandle::~PF_PageHandle()
 {
-  // Don't need to do anything
+    // 无需任何操作
 }
 
-//
-// PF_PageHandle
-//
-// Desc: Copy constructor
-//       If the incoming page handle object refers to a pinned page,
-//       the page will NOT be pinned again.
-// In:   pageHandle - page handle object from which to construct this object
-//
+//----------------------------------------------
+// PF_PageHandle 拷贝构造函数
+// 描述: 拷贝构造函数
+//       如果传入的页面句柄对象引用已固定的页面，该页面不会被再次固定
+// 输入: pageHandle - 用于构造本对象的页面句柄对象
+//----------------------------------------------
 PF_PageHandle::PF_PageHandle(const PF_PageHandle &pageHandle)
 {
-  // Just copy the local variables since there is no local memory
-  // allocation involved
-  this->pageNum = pageHandle.pageNum;
-  this->pPageData = pageHandle.pPageData;
-}
-
-//
-// operator=
-//
-// Desc: overload = operator
-//       If the page handle object on the rhs refers to a pinned page,
-//       the page will NOT be pinned again.
-// In:   pageHandle - page handle object to set this object equal to
-// Ret:  reference to *this
-//
-PF_PageHandle& PF_PageHandle::operator= (const PF_PageHandle &pageHandle)
-{
-  // Check for self-assignment
-  if (this != &pageHandle) {
-
-    // Just copy the pointers since there is no local memory
-    // allocation involved
+    // 只需复制局部变量，不涉及内存分配
     this->pageNum = pageHandle.pageNum;
     this->pPageData = pageHandle.pPageData;
-  }
-
-  // Return a reference to this
-  return (*this);
 }
 
-//
-// GetData
-//
-// Desc: Access the contents of a page.  The page handle object must refer
-//       to a pinned page.
-// Out:  pData - Set pData to point to the page contents
-// Ret:  PF return code
-//
+//----------------------------------------------
+// operator= 赋值运算符重载
+// 描述: 重载赋值运算符
+//       如果右侧的页面句柄对象引用已固定的页面，该页面不会被再次固定
+// 输入: pageHandle - 要赋值的页面句柄对象
+// 返回: 返回*this的引用
+//----------------------------------------------
+PF_PageHandle& PF_PageHandle::operator= (const PF_PageHandle &pageHandle)
+{
+    // 检查自赋值情况
+    if (this != &pageHandle) {
+        // 只需复制指针，不涉及内存分配
+        this->pageNum = pageHandle.pageNum;
+        this->pPageData = pageHandle.pPageData;
+    }
+
+    // 返回本对象的引用
+    return (*this);
+}
+
+//----------------------------------------------
+// 获取页面数据
+// 描述: 访问页面内容。页面句柄对象必须引用已固定的页面
+// 输出: pData - 设置为指向页面内容的指针
+// 返回: PF 返回码
+//----------------------------------------------
 RC PF_PageHandle::GetData(char *&pData) const
 {
-  // Page must refer to a pinned page
-  if (pPageData == NULL)
-    return (PF_PAGEUNPINNED);
 
-  // Set pData to point to page contents (after PF header)
-  pData = pPageData;
+    // 页面必须引用已固定的页面
+    if (pPageData == NULL)
+        return (PF_PAGEUNPINNED);  // 页面未固定错误
 
-  // Return ok
-  return (0);
+    // 设置pData指向页面内容(PF头之后)
+    pData = pPageData;
+
+    // 返回成功
+    return (0);
 }
 
-//
-// GetPageNum
-//
-// Desc: Access the page number.  The page handle object must refer to
-//       a pinned page.
-// Out:  pageNum - contains the page number
-// Ret:  PF return code
-//
+//----------------------------------------------
+// 获取页面号
+// 描述: 访问页面号。页面句柄对象必须引用已固定的页面
+// 输出: _pageNum - 包含页面号
+// 返回: PF 返回码
+//----------------------------------------------
 RC PF_PageHandle::GetPageNum(PageNum &_pageNum) const
 {
+    // 页面必须引用已固定的页面
+    if (pPageData == NULL)
+        return (PF_PAGEUNPINNED);  // 页面未固定错误
 
-  // Page must refer to a pinned page
-  if (pPageData == NULL)
-    return (PF_PAGEUNPINNED);
+    // 设置页面号
+    _pageNum = this->pageNum;
 
-  // Set page number
-  _pageNum = this->pageNum;
-
-  // Return ok
-  return (0);
+    // 返回成功
+    return (0);
 }
