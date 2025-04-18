@@ -1,14 +1,6 @@
-//
-// linkedlist.h
-//
 
-// Simple template to track a linked list.  This is a doubly linked list
-// written by the 2000-TA Andre Bergholz
-// who has spent some effort making the access methods more efficient
-// for very long lists.
-
-// This linked list is base 0
-// In order to do a traversal through all of the elements:
+// 链表索引从0开始
+// 遍历所有元素的示例:
 //   for (int i=0; i<list.GetLength(); i++) {
 //       <class T> *pT = list[i]
 //   }
@@ -16,515 +8,330 @@
 #ifndef TEMPL_LINKED_LIST_H
 #define TEMPL_LINKED_LIST_H
 
-//
-// Definition of Linked list template class
-//
+//----------------------------------------------
+// 链表模板类定义
+//----------------------------------------------
 template <class T>
-class LinkList
-{
-   public:
-      // Simple default Constructor
-      LinkList ( );
+class LinkList {
+public:
+    LinkList();                          // 默认构造函数
+    LinkList(const LinkList<T> &sourcell); // 拷贝构造函数
+    ~LinkList();                         // 析构函数
 
-      // Copy constructor
-      LinkList ( const LinkList<T> & sourcell );
+    void operator=(const LinkList<T> &sourcell); // 赋值运算符
+    bool operator==(const LinkList<T> &rhs) const; // 相等比较运算符
 
-      // Destructor
-      ~LinkList();
+    operator T*();  // 转换为数组运算符(调用者需负责释放内存)
 
-      // Assignment operator
-      void operator = ( const LinkList<T> & sourcell );
+    // 添加元素方法
+    void Append(const T &item);          // 添加单个元素
+    void Append(const LinkList<T> &sourcell); // 添加链表
 
-      // Equality tester
-      bool operator == ( const LinkList<T> & rhs ) const;
+    // 运算符重载(更直观的添加方式)
+    LinkList<T> operator+(const LinkList<T> &sourcell) const;
+    LinkList<T> operator+(const T &element) const;
+    void operator+=(const LinkList<T> &sourcell);
+    void operator+=(const T &element);
 
-      // Copy the LinkList and convert it to an array.  Caller is
-      // responsible for releasing memory.
-      operator T * ();
+    void Delete(int index);              // 删除指定位置元素
+    void Erase();                        // 清空链表
 
-      // Append new item
-      void Append ( const T & item );
-      void Append ( const LinkList<T> & sourcell );
+    // 访问方法(返回元素指针，调用者不应删除返回的指针)
+    T* Get(int index);                   // 获取指定位置元素
+    T* operator[](int index);            // 下标运算符重载
+    int GetLength() const;               // 获取链表长度
 
-      // Other, somtimes more intuitive, appending functions
-      LinkList<T> operator+(const LinkList<T> &sourcell) const;
-      LinkList<T> operator+(const T &element) const;
-      void operator+=(const LinkList<T> &sourcell);
-      void operator+=(const T &element);
+protected:
+    // 链表内部节点结构
+    struct InternalNode {
+        T Data;                     // 节点数据
+        InternalNode *next;         // 后向指针
+        InternalNode *previous;     // 前向指针
+    };
 
-      // Delete current item
-      void Delete( int index );
+    int iLength;                    // 链表长度
+    InternalNode *pnHead;           // 头节点指针
+    InternalNode *pnTail;           // 尾节点指针
+    InternalNode *pnLastRef;        // 最后访问节点指针(缓存优化)
+    int iLastRef;                   // 最后访问位置索引
 
-      // Remove all items from the list
-      void Erase();
-
-      // Access methods
-      //
-      // NOTE:  All access methods will return pointers to elements of Type
-      // T.  Pointers were chosen since I didn't feel like using
-      // exceptions.  The client should *not* delete the pointer returned
-      // when done.  You can modify the object in place, it will be
-      // reflected within the list.
-
-      // Get current item.  Valid ranges for the index are:
-      // 0..(1-GetLength())
-      T* Get( int index );
-
-      // A more intuitive way to grab the next element
-      T* operator[](int index);
-
-      // Get the length of the linked list
-      int  GetLength() const;
-
-   protected:
-      // An internal node within the linked list is a single element.  It
-      // contains the data that we are storing (of type T defined by the
-      // template) and pointers to the previous and next.
-      struct InternalNode {
-           T Data;
-           InternalNode * next;
-           InternalNode * previous;
-      };
-
-      int iLength;               // # of items in list
-      InternalNode *pnHead;      // First item
-      InternalNode *pnTail;      // Last item
-      InternalNode *pnLastRef;   // Current item
-      int iLastRef;              // Which element # last referenced
-
-      // Set the Private members of the class to initial values
-      void Setnullptr();
+    void Setnullptr();              // 初始化成员变量
 };
 
-/****************************************************************************/
+//----------------------------------------------
+// 成员函数实现
+//----------------------------------------------
 
-//
-// Setnullptr
-//
-// This will set (or reset) the intial values of the private members of
-// LinkList
-//
+// 初始化成员变量
 template <class T>
-inline void LinkList<T>::Setnullptr()
-{
-   pnHead = nullptr;
-   pnTail = nullptr;
-   pnLastRef = nullptr;
-   iLength = 0;
-   iLastRef = -1;
+inline void LinkList<T>::Setnullptr() {
+    pnHead = nullptr;
+    pnTail = nullptr;
+    pnLastRef = nullptr;
+    iLength = 0;
+    iLastRef = -1;
 }
 
-/****************************************************************************/
-
-//
-// LinkList
-//
-// Constructor
-//
+// 默认构造函数
 template <class T>
-inline LinkList<T>::LinkList ()
-{
-   Setnullptr();
+inline LinkList<T>::LinkList() {
+    Setnullptr();
 }
 
-/****************************************************************************/
-
-//
-// LinkList ( const LinkList<T> &sourcell )
-//
-// Copy constructor
-//
+// 拷贝构造函数
 template <class T>
-LinkList<T>::LinkList ( const LinkList<T> & sourcell )
-{
-   // Initialize the new list
-   Setnullptr();
+LinkList<T>::LinkList(const LinkList<T> &sourcell) {
+    Setnullptr();
+    if (sourcell.iLength == 0) return;
 
-   // And copy all the members of the passed in list
-   if (sourcell.iLength == 0)
-      return;
-
-   InternalNode *n = sourcell.pnHead;
-
-   while (n != nullptr)
-   {
-      Append(n->Data);
-      n = n->next;
-   }
-   pnLastRef = pnHead;
+    InternalNode *n = sourcell.pnHead;
+    while (n != nullptr) {
+        Append(n->Data);
+        n = n->next;
+    }
+    pnLastRef = pnHead;
 }
 
-/****************************************************************************/
-
-//
-// ~LinkList
-//
-// Destructor
-//
+// 析构函数
 template <class T>
-inline LinkList<T>::~LinkList()
-{
-   Erase();
+inline LinkList<T>::~LinkList() {
+    Erase();
 }
 
-/****************************************************************************/
-
-//
-// Operator =
-//
-// Assignment operator
-//
+// 赋值运算符
 template <class T>
-void LinkList<T>::operator = ( const LinkList<T> & sourcell )
-{
-   // First erase the original list
-   Erase();
-
-   // Now, copy the passed in list
-   InternalNode *pnTemp = sourcell.pnHead;
-
-   while (pnTemp != nullptr)
-   {
-      Append(pnTemp->Data);
-      pnTemp = pnTemp->next;
-   }
-
-   pnLastRef = nullptr;
-   iLastRef = -1;
+void LinkList<T>::operator=(const LinkList<T> &sourcell) {
+    Erase(); // 先清空原链表
+    InternalNode *pnTemp = sourcell.pnHead;
+    while (pnTemp != nullptr) {
+        Append(pnTemp->Data);
+        pnTemp = pnTemp->next;
+    }
+    pnLastRef = nullptr;
+    iLastRef = -1;
 }
 
-/****************************************************************************/
-
-//
-// Operator ==
-//
-// Test for equality of two link lists
-//
+// 相等比较运算符
 template <class T>
-bool LinkList<T>::operator == ( const LinkList<T> & rhs ) const
-{
-   if (iLength != rhs.iLength)
-      return (false);
+bool LinkList<T>::operator==(const LinkList<T> &rhs) const {
+    if (iLength != rhs.iLength) return false;
 
-   InternalNode *pnLhs = this->pnHead;
-   InternalNode *pnRhs = rhs.pnHead;
-
-   while (pnLhs != nullptr && pnRhs != nullptr)
-   {
-      // The Data type T set by the template had better define an equality
-      // operator for their data type!
-      if (!(pnLhs->Data == pnRhs->Data))
-         return false;
-      pnLhs = pnLhs->next;
-      pnRhs = pnRhs->next;
-   }
-
-   if (pnLhs==nullptr && pnRhs==nullptr)
-      return true;
-   else
-      return false;
-}
-/****************************************************************************/
-
-//
-// Conversion to array operator
-//
-// This returns a copy of the list and the caller must delete it when done.
-//
-template <class T>
-LinkList<T>::operator T * ()
-{
-   if (iLength == 0)
-      return nullptr;
-
-   T *pResult = new T[iLength];
-
-   InternalNode *pnCur = pnHead;
-   T *pnCopy = pResult;
-
-   while (pnCur != nullptr)
-   {
-      *pnCopy = pnCur->Data;
-      ++pnCopy;
-      pnCur = pnCur->next;
-   }
-
-   // Note:  This is a copy of the list and the caller must delete it when
-   // done.
-   return pResult;
+    InternalNode *pnLhs = this->pnHead;
+    InternalNode *pnRhs = rhs.pnHead;
+    while (pnLhs != nullptr && pnRhs != nullptr) {
+        if (!(pnLhs->Data == pnRhs->Data)) return false;
+        pnLhs = pnLhs->next;
+        pnRhs = pnRhs->next;
+    }
+    return (pnLhs == nullptr && pnRhs == nullptr);
 }
 
-/****************************************************************************/
-
-//
-// Append
-//
-// Append new item to the end of the linked list
-//
+// 转换为数组运算符
 template <class T>
-inline void LinkList<T>::Append ( const T & item )
-{
-   InternalNode *pnNew = new InternalNode;
+LinkList<T>::operator T*() {
+    if (iLength == 0) return nullptr;
 
-   pnNew->Data = item;
-   pnNew->next = nullptr;
-   pnNew->previous = pnTail;
+    T *pResult = new T[iLength];
+    InternalNode *pnCur = pnHead;
+    T *pnCopy = pResult;
 
-   // If it is the first then set the head to this element
-   if (iLength == 0)
-   {
-      pnHead = pnNew;
-      pnTail = pnNew;
-      pnLastRef = pnNew;
-   }
-   else
-   {
-      // Set the tail to be this new element
-      pnTail->next = pnNew;
-      pnTail = pnNew;
-   }
-
-   ++iLength;
+    while (pnCur != nullptr) {
+        *pnCopy = pnCur->Data;
+        ++pnCopy;
+        pnCur = pnCur->next;
+    }
+    return pResult; // 调用者需负责释放内存
 }
 
-/****************************************************************************/
-
+// 添加单个元素
 template <class T>
-inline LinkList<T>
-LinkList<T>::operator+(const LinkList<T> &sourcell) const
-{
+inline void LinkList<T>::Append(const T &item) {
+    InternalNode *pnNew = new InternalNode;
+    pnNew->Data = item;
+    pnNew->next = nullptr;
+    pnNew->previous = pnTail;
+
+    if (iLength == 0) {
+        pnHead = pnNew;
+        pnTail = pnNew;
+        pnLastRef = pnNew;
+    } else {
+        pnTail->next = pnNew;
+        pnTail = pnNew;
+    }
+    ++iLength;
+}
+
+// 添加链表
+template <class T>
+void LinkList<T>::Append(const LinkList<T> &sourcell) {
+    const InternalNode *pnCur = sourcell.pnHead;
+    while (pnCur != nullptr) {
+        Append(pnCur->Data);
+        pnCur = pnCur->next;
+    }
+}
+
+// 运算符重载实现
+template <class T>
+inline LinkList<T> LinkList<T>::operator+(const LinkList<T> &sourcell) const {
     LinkList<T> pTempLL(*this);
     pTempLL += sourcell;
     return pTempLL;
 }
 
-/****************************************************************************/
-
 template <class T>
-inline LinkList<T>
-LinkList<T>::operator+(const T &element) const
-{
+inline LinkList<T> LinkList<T>::operator+(const T &element) const {
     LinkList<T> pTempLL(*this);
     pTempLL += element;
     return pTempLL;
 }
 
-/****************************************************************************/
-
 template <class T>
-void
-LinkList<T>::operator+=(const LinkList<T> &list)
-{
+void LinkList<T>::operator+=(const LinkList<T> &list) {
     const InternalNode *pnTemp;
     const int iLength = list.iLength;
     int i;
-
-    // Must use size as stopping condition in case *this == list.
     for (pnTemp = list.pnHead, i=0; i < iLength; pnTemp = pnTemp->next, i++)
         *this += pnTemp->Data;
 }
 
-/****************************************************************************/
-
 template <class T>
-void
-LinkList<T>::operator+=(const T &element)
-{
+void LinkList<T>::operator+=(const T &element) {
     InternalNode *pnNew = new InternalNode;
     pnNew->next = nullptr;
     pnNew->Data = element;
     if (iLength++ == 0) {
         pnHead = pnNew;
         pnNew->previous = nullptr;
-    }
-    else {
+    } else {
         pnTail->next = pnNew;
         pnNew->previous = pnTail;
     }
     pnTail = pnNew;
 }
 
-/****************************************************************************/
-
+// 删除指定位置元素
 template <class T>
-void LinkList<T>::Append ( const LinkList<T> & sourcell )
-{
-   const InternalNode *pnCur = sourcell.pnHead;
+inline void LinkList<T>::Delete(int which) {
+    if (which > iLength || which == 0) return;
 
-   while (pnCur != nullptr)
-   {
-      Append(pnCur->Data);
-      pnCur = pnCur->next;
-   }
-}
+    InternalNode *pnDeleteMe = pnHead;
+    for (int i=1; i<which; i++)
+        pnDeleteMe = pnDeleteMe->next;
 
-/****************************************************************************/
-
-//
-// Delete
-//
-// Delete the specified element
-//
-template <class T>
-inline void LinkList<T>::Delete(int which)
-{
-   if (which>iLength || which == 0)
-      return;
-
-   InternalNode *pnDeleteMe = pnHead;
-
-   for (int i=1; i<which; i++)
-      pnDeleteMe = pnDeleteMe->next;
-
-   if (pnDeleteMe == pnHead)
-   {
-      if (pnDeleteMe->next == nullptr)
-      {
-         delete pnDeleteMe;
-         Setnullptr();
-      }
-      else
-      {
-         pnHead = pnDeleteMe->next;
-         pnHead->previous = nullptr;
-         delete pnDeleteMe;
-         pnLastRef = pnHead;
-      }
-   }
-   else
-   {
-      if (pnDeleteMe == pnTail)
-      {
-         if (pnDeleteMe->previous == nullptr)
-         {
+    // 处理头节点情况
+    if (pnDeleteMe == pnHead) {
+        if (pnDeleteMe->next == nullptr) {
             delete pnDeleteMe;
             Setnullptr();
-         }
-         else
-         {
+        } else {
+            pnHead = pnDeleteMe->next;
+            pnHead->previous = nullptr;
+            delete pnDeleteMe;
+            pnLastRef = pnHead;
+        }
+    }
+        // 处理尾节点情况
+    else if (pnDeleteMe == pnTail) {
+        if (pnDeleteMe->previous == nullptr) {
+            delete pnDeleteMe;
+            Setnullptr();
+        } else {
             pnTail = pnDeleteMe->previous;
             pnTail->next = nullptr;
             delete pnDeleteMe;
             pnLastRef = pnTail;
-         }
-      }
-      else
-      {
-         pnLastRef = pnDeleteMe->next;
-         pnDeleteMe->previous->next = pnDeleteMe->next;
-         pnDeleteMe->next->previous = pnDeleteMe->previous;
-         delete pnDeleteMe;
-      }
-   }
+        }
+    }
+        // 处理中间节点情况
+    else {
+        pnLastRef = pnDeleteMe->next;
+        pnDeleteMe->previous->next = pnDeleteMe->next;
+        pnDeleteMe->next->previous = pnDeleteMe->previous;
+        delete pnDeleteMe;
+    }
 
-   if (iLength!=0)
-      --iLength;
+    if (iLength != 0) --iLength;
 }
 
-/****************************************************************************/
-
+// 下标运算符重载
 template <class T>
-inline T* LinkList<T>::operator[](int index)
-{
-	return (Get(index));
+inline T* LinkList<T>::operator[](int index) {
+    return Get(index);
 }
 
-/****************************************************************************/
-
-//
-// Erase
-//
-// remove all items from the list
-//
+// 清空链表
 template <class T>
-inline void LinkList<T>::Erase()
-{
-   pnLastRef = pnHead;
-
-   while (pnLastRef != nullptr)
-   {
-      pnHead = pnLastRef->next;
-      delete pnLastRef;
-      pnLastRef = pnHead;
-   }
-   Setnullptr();
+inline void LinkList<T>::Erase() {
+    pnLastRef = pnHead;
+    while (pnLastRef != nullptr) {
+        pnHead = pnLastRef->next;
+        delete pnLastRef;
+        pnLastRef = pnHead;
+    }
+    Setnullptr();
 }
 
-/****************************************************************************/
-
-// Get
-//
-// Get a specified item.  Notice here that index can be between 0 and
-// 1-iLength.  Once we determine this I add 1 to the index in order to make
-// the get function easier.
-//
+// 获取指定位置元素(带访问优化)
 template <class T>
-inline T* LinkList<T>::Get(int index)
-{
-	int iCur;               // Position to start search from
-	InternalNode *pnTemp;   // Node to start search from
-	int iRelToMiddle;       // Position asked for relative to last ref
+inline T* LinkList<T>::Get(int index) {
+    int iCur;               // 搜索起始位置
+    InternalNode *pnTemp;   // 搜索起始节点
+    int iRelToMiddle;       // 请求位置相对于最后访问位置的偏移
 
-   // Make sure that item is within bounds
-	if (index < 0 || index >= iLength)
-		return nullptr;
+    if (index < 0 || index >= iLength) return nullptr;
 
-   // Having the index be base 1 makes this procedure much easier.
-   index++;
+    index++; // 转换为1-based索引便于处理
 
-	if (iLastRef==-1)
-		if (index < (iLength-index)) {
-			iCur = 1;
-			pnTemp = pnHead;
-		} else {
-			iCur = iLength;
-			pnTemp = pnTail;
-		}
-	else
-		{
-			if (index < iLastRef)
-				iRelToMiddle = iLastRef - index;
-			else
-				iRelToMiddle = index - iLastRef;
+    // 确定最优搜索起点(头节点、尾节点或上次访问节点)
+    if (iLastRef == -1) {
+        if (index < (iLength - index)) {
+            iCur = 1;
+            pnTemp = pnHead;
+        } else {
+            iCur = iLength;
+            pnTemp = pnTail;
+        }
+    } else {
+        if (index < iLastRef)
+            iRelToMiddle = iLastRef - index;
+        else
+            iRelToMiddle = index - iLastRef;
 
-			if (index < iRelToMiddle) {
-				// The head is closest to requested element
-				iCur = 1;
-				pnTemp = pnHead;
-			}
-			else
-				if (iRelToMiddle < (iLength - index)) {
-					iCur = iLastRef;
-					pnTemp = pnLastRef;
-				} else {
-					iCur = iLength;
-					pnTemp = pnTail;
-				}
-		}
+        if (index < iRelToMiddle) {
+            iCur = 1;
+            pnTemp = pnHead;
+        } else if (iRelToMiddle < (iLength - index)) {
+            iCur = iLastRef;
+            pnTemp = pnLastRef;
+        } else {
+            iCur = iLength;
+            pnTemp = pnTail;
+        }
+    }
 
-	// Now starting from the decided upon first element
-	// find the desired element
-	while (iCur != index)
-		if (iCur < index) {
-			iCur++;
-			pnTemp = pnTemp->next;
-		} else {
-			iCur--;
-			pnTemp = pnTemp->previous;
-		}
+    // 从确定的位置开始搜索目标元素
+    while (iCur != index) {
+        if (iCur < index) {
+            iCur++;
+            pnTemp = pnTemp->next;
+        } else {
+            iCur--;
+            pnTemp = pnTemp->previous;
+        }
+    }
 
-	iLastRef = index;
-	pnLastRef = pnTemp;
-
-   return &(pnLastRef->Data);
+    // 更新最后访问记录
+    iLastRef = index;
+    pnLastRef = pnTemp;
+    return &(pnLastRef->Data);
 }
 
-/****************************************************************************/
-
+// 获取链表长度
 template <class T>
-inline int LinkList<T>::GetLength() const
-{
-   return iLength;
+inline int LinkList<T>::GetLength() const {
+    return iLength;
 }
 
-#endif
+#endif // TEMPL_LINKED_LIST_H

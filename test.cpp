@@ -34,7 +34,7 @@ extern void PF_Statistics();
 #define FILE1 "file1"  // 测试文件名
 
 // PF层测试函数
-RC TestPF()
+static RC TestPF()
 {
     PF_Manager pfm;        // PF管理器
     PF_FileHandle fh;      // 文件句柄
@@ -170,7 +170,7 @@ RC TestPF()
         }
     }
 
-    // 9. 再次获取原始页面
+//     9. 再次获取原始页面
 //    cout << "再次请求原始页面" << endl;
 //    for (i = 0; i < PF_BUFFER_SIZE; i++) {
 //        if ( //(rc = fh.GetThisPage(i, ph)) ||
@@ -231,37 +231,35 @@ RC TestPF()
 }
 
 // 主函数
-int main()
-{
-    RC rc;
-
-    // 输出初始信息
-    cerr.flush();
-    cout.flush();
-    cout << "********************" << endl;
-    cout << "开始PF层测试" << endl;
-    cout.flush();
-
-    // 如果没有启用统计，输出警告
-#ifndef PF_STATS
-    cout << " ** PF层编译时未启用-DPF_STATS标志 **" << endl;
-    cout << " **    没有统计信息测试效果有限    **" << endl;
-#endif
-
-    cout << "----------------------" << endl;
-
-    // 删除上次测试的文件
-    unlink(FILE1);
-
-    // 运行测试
-    if ((rc = TestPF())) {
-        PF_PrintError(rc);
-        return 1;
-    }
-
-    // 输出结束信息
-    cout << "PF层测试结束" << endl;
-    cout << "********************" << endl << endl;
-
-    return 0;
-}
+//int main()
+//{
+//    RC rc;
+//
+//    // 输出初始信息
+//    cerr.flush();
+//    cout.flush();
+//    cout << "开始PF层测试" << endl;
+//    cout.flush();
+//
+//    // 如果没有启用统计，输出警告
+//#ifndef PF_STATS
+//    cout << " ** PF层编译时未启用-DPF_STATS标志 **" << endl;
+//    cout << " **    没有统计信息测试效果有限    **" << endl;
+//#endif
+//
+//
+//    // 删除上次测试的文件
+//    unlink(FILE1);
+//
+//    // 运行测试
+//    if ((rc = TestPF())) {
+//        PF_PrintError(rc);
+//        return 1;
+//    }
+//
+//    // 输出结束信息
+//    cout << "PF层测试结束" << endl;
+//    cout << "********************" << endl << endl;
+//
+//    return 0;
+//}

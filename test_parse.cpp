@@ -9,11 +9,13 @@
 #include <memory>
 #include "DBMSParser.h"
 #include "Database.h"
+#include "test.cpp"
 void executeCommand(const DBMSParser::ParsedCommand& cmd, std::shared_ptr<Database>& currentDb) {
     switch (cmd.type) {
         case DBMSParser::CommandType::CREATE_DATABASE:
             if (!cmd.databaseName.empty()) {
                 currentDb = std::make_shared<Database>(cmd.databaseName);
+                TestPF();
                 std::cout << "数据库 " << cmd.databaseName << " 创建成功" << std::endl;
             }
             break;
@@ -69,7 +71,7 @@ int main() {
         std::getline(std::cin, sql);
 
         if (sql == "exit") {
-            break;
+            exit(0);
         }
 
         if (!sql.empty()) {

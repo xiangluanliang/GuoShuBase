@@ -1,141 +1,120 @@
-//
-// statistics.h
-//
-
-// This file contains the interface for the statistics class
-// which can be setup to dynamically track statistics within a
-// C++ program.
-
-// This is essentially a (poor-man's) simplified version of gprof.
-
-// My intent here is to allow the StatisticsMgr to be used with very little
-// setup on the part of the client.  Notice that you don't need to setup
-// all the statistics that you will be tracking.  You just Register the
-// statistic as you go.  In the end the Print or Get methods will allow you
-// to report all the statistics.
-
-// Andre Bergholz, who was the TA for the 2000 offering, has written
-// some (or probably all) of this code.
-
 #ifndef STATISTICS_H
 #define STATISTICS_H
 
-// Some common definitions that might not already be set
+//----------------------------------------------
+// 常用类型定义(防止重复定义)
+//----------------------------------------------
 #ifndef Boolean
-typedef char Boolean;
+typedef char Boolean;  // 布尔类型
 #endif
 
 #ifndef TRUE
-#define TRUE 1
+#define TRUE 1        // 真值
 #endif
 
 #ifndef FALSE
-#define FALSE 0
+#define FALSE 0       // 假值
 #endif
 
 #ifndef NULL
-#define NULL 0
+#define NULL 0        // 空指针
 #endif
 
 #ifndef RC
-typedef int RC;
+typedef int RC;       // 返回码类型
 #endif
 
 #ifndef STAT_BASE
-const int STAT_BASE = 9000;
+const int STAT_BASE = 9000;  // 统计模块错误码基值
 #endif
 
-// This include must come after the common defines
-#include "linkedlist.h"    // Template class for the link list
+// 必须在通用定义后包含链表模板类
+#include "linkedlist.h"  // 链表模板类
 
-// A single statistic will be tracked by a Statistic class
+//----------------------------------------------
+// Statistic类 - 单个统计项的追踪
+//----------------------------------------------
 class Statistic {
 public:
-    Statistic();
-    ~Statistic();
-    Statistic(const char *psName);
+    Statistic();  // 默认构造函数
+    ~Statistic(); // 析构函数
+    Statistic(const char *psName); // 带名称的构造函数
 
-    // Copy constructor
+    // 拷贝构造函数
     Statistic(const Statistic &stat);
 
-    // Equality constructor
+    // 赋值运算符重载
     Statistic& operator=(const Statistic &stat);
 
-    // Check for equality between a Statistic and a name based upon the
-    // names given to the current statistic.
+    // 比较运算符重载(基于统计项名称)
     Boolean operator==(const char *psName_) const;
 
-    // The name or key given to the statistic that this structure is
-    // tracking
-    char *psKey;
-
-    // Currently, I have only allowed the statistic to track integer values.
-    // Initial value will be 0.
-    int iValue;
+    char *psKey;   // 统计项的名称/键值
+    int iValue;    // 统计值(当前仅支持整型值，初始为0)
 };
 
-// These are the different operations that a single statistic can undergo
-// duing a call to StatisticsMgr::Register.
+//----------------------------------------------
+// 统计操作枚举类型
+// 表示可以对统计项执行的各种操作
+//----------------------------------------------
 enum Stat_Operation {
-    STAT_ADDONE,
-    STAT_ADDVALUE,
-    STAT_SETVALUE,
-    STAT_MULTVALUE,
-    STAT_DIVVALUE,
-    STAT_SUBVALUE
+    STAT_ADDONE,    // 值加1
+    STAT_ADDVALUE,  // 增加指定值
+    STAT_SETVALUE,  // 设置为指定值
+    STAT_MULTVALUE, // 乘以指定值
+    STAT_DIVVALUE,  // 除以指定值
+    STAT_SUBVALUE   // 减去指定值
 };
 
-// The StatisticsMgr will track a group of statistics
+//----------------------------------------------
+// StatisticsMgr类 - 管理一组统计项
+//----------------------------------------------
 class StatisticsMgr {
-
 public:
-    StatisticsMgr() {};
-    ~StatisticsMgr() {};
+    StatisticsMgr() {};  // 构造函数
+    ~StatisticsMgr() {}; // 析构函数
 
-    // Add a new statistic or register a change to an existing statistic.
-    // The piValue for can be NULL, except for those operations that require
-    // it.  When adding the default value is 0 with the Stat_Operation being
-    // performed over the initial value.
+    // 添加新统计项或更新已有统计项
+    // piValue可以为NULL(除需要该参数的操作外)
+    // 添加时默认值为0，然后执行指定操作
     RC Register(const char *psKey, const Stat_Operation op,
                 const int *const piValue = NULL);
 
-    // Get will return the value associated with a particular statistic.
-    // Caller is responsible for deleting the memory returned.
+    // 获取指定统计项的值
+    // 调用者负责释放返回的内存
     int *Get(const char *psKey);
 
-    // Print out a specific statistic
+    // 打印单个统计项
     RC Print(const char *psKey);
 
-    // Print out all the statistics tracked
+    // 打印所有统计项
     void Print();
 
-    // Reset a specific statistic
+    // 重置单个统计项
     RC Reset(const char *psKey);
 
-    // Reset all of the statistics
+    // 重置所有统计项
     void Reset();
 
 private:
-    LinkList<Statistic> llStats;
+    LinkList<Statistic> llStats;  // 统计项链表(使用模板类)
 };
 
-//
-// Return codes
-//
-const int STAT_INVALID_ARGS = STAT_BASE+1;  // Bad Args in call to method
-const int STAT_UNKNOWN_KEY  = STAT_BASE+2;  // No such Key being tracked
+//----------------------------------------------
+// 返回码定义
+//----------------------------------------------
+const int STAT_INVALID_ARGS = STAT_BASE+1;  // 方法调用参数无效
+const int STAT_UNKNOWN_KEY  = STAT_BASE+2;  // 未知的统计键值
 
-//
-// The following are specifically for tracking the statistics in the PF
-// component of Redbase.  When statistics are utilized, these constants
-// will be used as the keys for the statistics manager.
-//
-extern const char *PF_GETPAGE;
-extern const char *PF_PAGEFOUND;
-extern const char *PF_PAGENOTFOUND;
-extern const char *PF_READPAGE;         // IO
-extern const char *PF_WRITEPAGE;        // IO
-extern const char *PF_FLUSHPAGES;
+//----------------------------------------------
+// Redbase的PF组件专用统计键值
+// 当使用统计功能时，这些常量将作为统计管理器的键值
+//----------------------------------------------
+extern const char *PF_GETPAGE;      // 获取页面次数
+extern const char *PF_PAGEFOUND;    // 页面命中次数
+extern const char *PF_PAGENOTFOUND; // 页面未命中次数
+extern const char *PF_READPAGE;     // 页面读取IO次数
+extern const char *PF_WRITEPAGE;    // 页面写入IO次数
+extern const char *PF_FLUSHPAGES;   // 页面刷新次数
 
-#endif
-
+#endif // STATISTICS_H

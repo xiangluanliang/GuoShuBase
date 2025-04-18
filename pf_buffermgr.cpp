@@ -5,24 +5,6 @@
 // @Project: GuoShuBase
 //
 //
-
-//
-// File:        pf_buffermgr.cc
-// Description: PF_BufferMgr class implementation
-// Authors:     Hugo Rivero (rivero@cs.stanford.edu)
-//              Dallan Quass (quass@cs.stanford.edu)
-//              Jason McHugh (mchughj@cs.stanford.edu)
-//
-// 1997: If PF_LOG is defined then a log file with the sequence of calls
-//       to the buffer manager is maintained.
-//       If PF_STATS is defined then a Statistics manager now tracks some
-//       relevant stats.  This differs from PF_LOG in that it can give a
-//       summary of the calls.  See statistics.h for interface and
-//       pf_test2.cc for a demo.
-// 1998: The statistics manager is now instantiated in this file and is
-//       created and destroyed by the buffer manager.
-//
-
 #include <cstdio>
 #include <unistd.h>
 #include <iostream>
