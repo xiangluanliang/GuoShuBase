@@ -788,7 +788,7 @@ RC PF_BufferMgr::ReadPage(int fd, PageNum pageNum, char *dest)
 
 //
 // WritePage
-//
+//写入
 // Desc: Write a page to disk
 //
 // In:   fd - OS file descriptor
