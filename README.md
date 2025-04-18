@@ -42,3 +42,36 @@ PF 组件（Paged File Manager）是 **GuoShuBase** 的底层存储管理模块�
 
 > [!tip]
 > However, a PF client can always send an explicit request to force (i.e., write to disk) the contents of a particular page, or to force all dirty pages of a file, without removing those pages from the buffer.
+
+```
+GuoShuBase
+├─ CMakeLists.txt
+├─ customer.data
+├─ DataBase.cpp
+├─ DataBase.h
+├─ DBMSParser.cpp
+├─ DBMSParser.h
+├─ guoshubase.h
+├─ linkedlist.h
+├─ pf.h
+├─ pf_buffermgr.cpp
+├─ pf_buffermgr.h
+├─ pf_error.cpp
+├─ pf_filehandle.cpp
+├─ pf_hashtable.cpp
+├─ pf_hashtable.h
+├─ pf_internal.h
+├─ pf_manager.cpp
+├─ pf_pagehandle.cpp
+├─ pf_statistics.cpp
+├─ README.md
+├─ statistics.cpp
+├─ statistics.h
+├─ Table.cpp
+├─ Table.h
+├─ test.cpp
+├─ testpf_buf.cpp
+├─ test_parse.cpp
+└─ Types.h
+
+```
