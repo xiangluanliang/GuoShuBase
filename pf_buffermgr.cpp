@@ -5,24 +5,6 @@
 // @Project: GuoShuBase
 //
 //
-
-//
-// File:        pf_buffermgr.cc
-// Description: PF_BufferMgr class implementation
-// Authors:     Hugo Rivero (rivero@cs.stanford.edu)
-//              Dallan Quass (quass@cs.stanford.edu)
-//              Jason McHugh (mchughj@cs.stanford.edu)
-//
-// 1997: If PF_LOG is defined then a log file with the sequence of calls
-//       to the buffer manager is maintained.
-//       If PF_STATS is defined then a Statistics manager now tracks some
-//       relevant stats.  This differs from PF_LOG in that it can give a
-//       summary of the calls.  See statistics.h for interface and
-//       pf_test2.cc for a demo.
-// 1998: The statistics manager is now instantiated in this file and is
-//       created and destroyed by the buffer manager.
-//
-
 #include <cstdio>
 #include <unistd.h>
 #include <iostream>
@@ -51,35 +33,37 @@ StatisticsMgr *pStatisticsMgr;
 //
 void WriteLog(const char *psMessage)
 {
-   static FILE *fLog = NULL;
+    static FILE *fLog = NULL;
 
-   // The first time through we have to create a new Log file
-   if (fLog == NULL) {
-      // This is the first time so I need to create a new log file.
-      // The log file will be named "PF_LOG.x" where x is the next
-      // available sequential number
-      int iLogNum = -1;
-      int bFound = FALSE;
-      char psFileName[10];
+    // The first time through we have to create a new Log file
+    if (fLog == NULL) {
+        // This is the first time so I need to create a new log file.
+        // The log file will be named "PF_LOG.x" where x is the next
+        // available sequential number
+        int iLogNum = -1;
+        int bFound = FALSE;
+        char psFileName[10];
 
-      while (iLogNum < 999 && bFound==FALSE) {
-         iLogNum++;
-         sprintf (psFileName, "PF_LOG.%d", iLogNum);
-         fLog = fopen(psFileName,"r");
-         if (fLog==NULL) {
-            bFound = TRUE;
-            fLog = fopen(psFileName,"w");
-         } else
-            delete fLog;
-      }
+        while (iLogNum < 999 && bFound==FALSE) {
+            iLogNum++;
+            sprintf (psFileName, "PF_LOG.%d", iLogNum);
+            fLog = fopen(psFileName,"r");
+            if (fLog==NULL) {
+                bFound = TRUE;
+                fLog = fopen(psFileName,"w");
+            } else{
+                fclose(fLog);
+                fLog = NULL;
+            }
+        }
 
-      if (!bFound) {
-         cerr << "Cannot create a new log file!\n";
-         exit(1);
-      }
-   }
-   // Now we have the log file open and ready for writing
-   fprintf (fLog, psMessage);
+        if (!bFound) {
+            cerr << "Cannot create a new log file!\n";
+            exit(1);
+        }
+    }
+    // Now we have the log file open and ready for writing
+    fprintf (fLog, psMessage);
 }
 #endif
 
@@ -132,8 +116,8 @@ RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Looking for (%d,%d).\n", fd, pageNum);
-   WriteLog(psMessage);
+    sprintf (psMessage, "Looking for (%d,%d).\n", fd, pageNum);
+    WriteLog(psMessage);
 #endif
 
 
@@ -187,8 +171,8 @@ RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
         bufTable[slot].pinCount++;
 #ifdef PF_LOG
         sprintf (psMessage, "Page found in buffer.  %d pin count.\n",
-            bufTable[slot].pinCount);
-      WriteLog(psMessage);
+                 bufTable[slot].pinCount);
+        WriteLog(psMessage);
 #endif
 
         // Make this page the most recently used page
@@ -220,8 +204,8 @@ RC PF_BufferMgr::AllocatePage(int fd, PageNum pageNum, char **ppBuffer)
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Allocating a page for (%d,%d)....", fd, pageNum);
-   WriteLog(psMessage);
+    sprintf (psMessage, "Allocating a page for (%d,%d)....", fd, pageNum);
+    WriteLog(psMessage);
 #endif
 
     // If page is already in buffer, return an error
@@ -272,8 +256,8 @@ RC PF_BufferMgr::MarkDirty(int fd, PageNum pageNum)
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Marking dirty (%d,%d).\n", fd, pageNum);
-   WriteLog(psMessage);
+    sprintf (psMessage, "Marking dirty (%d,%d).\n", fd, pageNum);
+    WriteLog(psMessage);
 #endif
 
     // The page must be found and pinned in the buffer
@@ -325,9 +309,9 @@ RC PF_BufferMgr::UnpinPage(int fd, PageNum pageNum)
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Unpinning (%d,%d). %d Pin count\n",
-         fd, pageNum, bufTable[slot].pinCount-1);
-   WriteLog(psMessage);
+    sprintf (psMessage, "Unpinning (%d,%d). %d Pin count\n",
+             fd, pageNum, bufTable[slot].pinCount-1);
+    WriteLog(psMessage);
 #endif
 
     // If unpinning the last pin, make it the most recently used page
@@ -357,8 +341,8 @@ RC PF_BufferMgr::FlushPages(int fd)
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Flushing all pages for (%d).\n", fd);
-   WriteLog(psMessage);
+    sprintf (psMessage, "Flushing all pages for (%d).\n", fd);
+    WriteLog(psMessage);
 #endif
 
 #ifdef PF_STATS
@@ -376,7 +360,7 @@ RC PF_BufferMgr::FlushPages(int fd)
 
 #ifdef PF_LOG
             sprintf (psMessage, "Page (%d) is in buffer manager.\n", bufTable[slot].pageNum);
- WriteLog(psMessage);
+            WriteLog(psMessage);
 #endif
             // Ensure the page is not pinned
             if (bufTable[slot].pinCount) {
@@ -387,7 +371,7 @@ RC PF_BufferMgr::FlushPages(int fd)
                 if (bufTable[slot].bDirty) {
 #ifdef PF_LOG
                     sprintf (psMessage, "Page (%d) is dirty\n",bufTable[slot].pageNum);
- WriteLog(psMessage);
+                    WriteLog(psMessage);
 #endif
                     if ((rc = WritePage(fd, bufTable[slot].pageNum, bufTable[slot].pData)))
                         return (rc);
@@ -428,8 +412,8 @@ RC PF_BufferMgr::ForcePages(int fd, PageNum pageNum)
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Forcing page %d for (%d).\n", pageNum, fd);
-   WriteLog(psMessage);
+    sprintf (psMessage, "Forcing page %d for (%d).\n", pageNum, fd);
+    WriteLog(psMessage);
 #endif
 
     // Do a linear scan of the buffer to find the page for the file
@@ -444,14 +428,14 @@ RC PF_BufferMgr::ForcePages(int fd, PageNum pageNum)
 
 #ifdef PF_LOG
             sprintf (psMessage, "Page (%d) is in buffer pool.\n", bufTable[slot].pageNum);
- WriteLog(psMessage);
+            WriteLog(psMessage);
 #endif
             // I don't care if the page is pinned or not, just write it if
             // it is dirty.
             if (bufTable[slot].bDirty) {
 #ifdef PF_LOG
                 sprintf (psMessage, "Page (%d) is dirty\n",bufTable[slot].pageNum);
-WriteLog(psMessage);
+                WriteLog(psMessage);
 #endif
                 if ((rc = WritePage(fd, bufTable[slot].pageNum, bufTable[slot].pData)))
                     return (rc);
@@ -781,8 +765,8 @@ RC PF_BufferMgr::ReadPage(int fd, PageNum pageNum, char *dest)
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Reading (%d,%d).\n", fd, pageNum);
-   WriteLog(psMessage);
+    sprintf (psMessage, "Reading (%d,%d).\n", fd, pageNum);
+    WriteLog(psMessage);
 #endif
 
 #ifdef PF_STATS
@@ -819,8 +803,8 @@ RC PF_BufferMgr::WritePage(int fd, PageNum pageNum, char *source)
 
 #ifdef PF_LOG
     char psMessage[100];
-   sprintf (psMessage, "Writing (%d,%d).\n", fd, pageNum);
-   WriteLog(psMessage);
+    sprintf (psMessage, "Writing (%d,%d).\n", fd, pageNum);
+    WriteLog(psMessage);
 #endif
 
 #ifdef PF_STATS

@@ -1,4 +1,11 @@
 //
+// @Author: 杨皓然 23301142
+// @E-amil: 23301142@bjtu.edu.cn
+// @CreateTime: 2025/5/5 21:54
+// @Project: testpf_buf
+//
+//
+//
 // File:        pf_test1.cc
 // Description: Test PF component
 // Authors:     Dallan Quass (quass@cs.stanford.edu)
@@ -510,6 +517,7 @@ RC TestHash()
 int main()
 {
    RC rc;
+   pStatisticsMgr = new StatisticsMgr();
 
    // Write out initial starting message
    cerr.flush();
@@ -538,6 +546,3 @@ int main()
 
    return (0);
 }
-
-
-
