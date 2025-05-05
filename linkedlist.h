@@ -331,6 +331,10 @@ inline T* LinkList<T>::Get(int index) {
 // 获取链表长度
 template <class T>
 inline int LinkList<T>::GetLength() const {
+    if (!this) {
+        std::cerr << "Error: GetLength() called on nullptr!" << std::endl;
+        return (0);
+    }
     return iLength;
 }
 

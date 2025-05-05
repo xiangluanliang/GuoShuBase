@@ -171,25 +171,25 @@ static RC TestPF()
     }
 
 //     9. 再次获取原始页面
-//    cout << "再次请求原始页面" << endl;
-//    for (i = 0; i < PF_BUFFER_SIZE; i++) {
-//        if ( //(rc = fh.GetThisPage(i, ph)) ||
-//            (rc = ph.GetData(pData)) ||
-//            (rc = ph.GetPageNum(pageNum))) {
-//            return rc;
-//        }
-//
-//        // 验证页号
-//        if (i != pageNum) {
-//            cout << "页号不正确: " << (int)pageNum << " 应为 " << i << endl;
-//            exit(1);
-//        }
-//
-//        // 解除页面固定
-//        if ((rc = fh.UnpinPage(i))) {
-//            return rc;
-//        }
-//    }
+    cout << "再次请求原始页面" << endl;
+    for (i = 0; i < PF_BUFFER_SIZE; i++) {
+        if ((rc = fh.GetThisPage(i, ph)) ||
+            (rc = ph.GetData(pData)) ||
+            (rc = ph.GetPageNum(pageNum))) {
+            return rc;
+        }
+
+        // 验证页号
+        if (i != pageNum) {
+            cout << "页号不正确: " << (int)pageNum << " 应为 " << i << endl;
+            exit(1);
+        }
+
+        // 解除页面固定
+        if ((rc = fh.UnpinPage(i))) {
+            return rc;
+        }
+    }
 
     // 10. 验证页面不在缓冲区中
 #ifdef PF_STATS
@@ -231,35 +231,36 @@ static RC TestPF()
 }
 
 // 主函数
-//int main()
-//{
-//    RC rc;
-//
-//    // 输出初始信息
-//    cerr.flush();
-//    cout.flush();
-//    cout << "开始PF层测试" << endl;
-//    cout.flush();
-//
-//    // 如果没有启用统计，输出警告
-//#ifndef PF_STATS
-//    cout << " ** PF层编译时未启用-DPF_STATS标志 **" << endl;
-//    cout << " **    没有统计信息测试效果有限    **" << endl;
-//#endif
-//
-//
-//    // 删除上次测试的文件
-//    unlink(FILE1);
-//
-//    // 运行测试
-//    if ((rc = TestPF())) {
-//        PF_PrintError(rc);
-//        return 1;
-//    }
-//
-//    // 输出结束信息
-//    cout << "PF层测试结束" << endl;
-//    cout << "********************" << endl << endl;
-//
-//    return 0;
-//}
+int main()
+{
+    RC rc;
+    pStatisticsMgr = new StatisticsMgr();
+
+    // 输出初始信息
+    cerr.flush();
+    cout.flush();
+    cout << "开始PF层测试" << endl;
+    cout.flush();
+
+    // 如果没有启用统计，输出警告
+#ifndef PF_STATS
+    cout << " ** PF层编译时未启用-DPF_STATS标志 **" << endl;
+    cout << " **    没有统计信息测试效果有限    **" << endl;
+#endif
+
+
+    // 删除上次测试的文件
+    unlink(FILE1);
+
+    // 运行测试
+    if ((rc = TestPF())) {
+        PF_PrintError(rc);
+        return 1;
+    }
+
+    // 输出结束信息
+    cout << "PF层测试结束" << endl;
+    cout << "********************" << endl << endl;
+
+    return 0;
+}

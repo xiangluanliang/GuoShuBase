@@ -51,8 +51,10 @@ void WriteLog(const char *psMessage)
             if (fLog==NULL) {
                 bFound = TRUE;
                 fLog = fopen(psFileName,"w");
-            } else
-                delete fLog;
+            } else{
+                fclose(fLog);
+                fLog = NULL;
+            }
         }
 
         if (!bFound) {

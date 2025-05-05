@@ -1,9 +1,6 @@
 #ifndef STATISTICS_H
 #define STATISTICS_H
 
-//----------------------------------------------
-// 常用类型定义(防止重复定义)
-//----------------------------------------------
 #ifndef Boolean
 typedef char Boolean;  // 布尔类型
 #endif

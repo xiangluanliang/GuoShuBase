@@ -9,7 +9,7 @@
 #include <memory>
 #include "DBMSParser.h"
 #include "Database.h"
-#include "test.cpp"
+#include "pf_test2.cpp"
 void executeCommand(const DBMSParser::ParsedCommand& cmd, std::shared_ptr<Database>& currentDb) {
     switch (cmd.type) {
         case DBMSParser::CommandType::CREATE_DATABASE:
