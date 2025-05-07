@@ -18,7 +18,7 @@ using namespace std;
 // 统计管理器在 pf_buffermgr.cc 中定义
 // 这里我们需要放置初始化代码并在main结束时打印最终统计信息
 #ifdef PF_STATS
-#include "statistics.h"
+#include "../utils/statistics.h"
 
 // 在 pf_buffermgr.cc 中定义的外部变量
 extern StatisticsMgr *pStatisticsMgr;

@@ -11,10 +11,10 @@ add_library(pf
         pf_buffermgr.cpp
         pf_hashtable.cpp
         pf_error.cpp
-        statistics.cpp
+        ../utils/statistics.cpp
         pf_statistics.cpp
 )
-
+#target_include_directories(pf PUBLIC ${CMAKE_SOURCE_DIR}/utils) #暂时先不单独编译
 target_include_directories(pf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(pf_test1 pf_test1.cpp)

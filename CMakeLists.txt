@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(GuoShuBase)
 set(CMAKE_CXX_STANDARD 17)
+#target_include_directories(GuoShuBase PRIVATE ${CMAKE_SOURCE_DIR}/utils)
 
 add_subdirectory(pf)
 add_subdirectory(rm)
