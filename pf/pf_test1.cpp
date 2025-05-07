@@ -517,7 +517,6 @@ RC TestHash()
 int main()
 {
    RC rc;
-   pStatisticsMgr = new StatisticsMgr();
 
    // Write out initial starting message
    cerr.flush();

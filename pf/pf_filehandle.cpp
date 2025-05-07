@@ -377,7 +377,7 @@ RC PF_FileHandle::FlushPages() const
     // 如果文件头已修改，写回文件
     if (bHdrChanged) {
         // 定位到文件开头
-        if (lseek(unixfd, 0, L_SET) < 0)
+        if (lseek(unixfd, 0, SEEK_SET) < 0)
             return (PF_UNIX);
 
         // 写入文件头
@@ -412,7 +412,7 @@ RC PF_FileHandle::ForcePages(PageNum pageNum) const
     // 如果文件头已修改，写回文件
     if (bHdrChanged) {
         // 定位到文件开头
-        if (lseek(unixfd, 0, L_SET) < 0)
+        if (lseek(unixfd, 0, SEEK_SET) < 0)
             return (PF_UNIX);
 
         // 写入文件头

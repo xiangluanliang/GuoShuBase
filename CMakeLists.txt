@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(pf)
 add_subdirectory(rm)
-#add_subdirectory(ix)
+add_subdirectory(ix)
 #add_subdirectory(sm)
 #add_subdirectory(ql)
 

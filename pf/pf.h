@@ -100,6 +100,7 @@ public:
 
     // Force a page or pages to disk (but do not remove from the buffer pool)
     RC ForcePages(PageNum pageNum = ALL_PAGES) const;
+    int unixfd;
 
 private:
 
@@ -111,7 +112,7 @@ private:
     PF_FileHdr hdr;                                // file header
     int bFileOpen;                                 // file open flag
     int bHdrChanged;                               // dirty flag for file hdr
-    int unixfd;                                    // OS file descriptor
+                                   // OS file descriptor
 };
 
 //
@@ -194,5 +195,28 @@ void PF_PrintError(RC rc);
 // Error in UNIX system call or library routine
 #define PF_UNIX            (START_PF_ERR - 10) // Unix error
 #define PF_LASTERROR       PF_UNIX
+
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#define open _open
+#define close _close
+#define read _read
+#define write _write
+#define unlink _unlink
+#define O_RDWR _O_RDWR
+#define O_BINARY _O_BINARY
+#define O_CREAT _O_CREAT
+#define O_EXCL _O_EXCL
+#define S_IREAD _S_IREAD
+#define S_IWRITE _S_IWRITE
+#define lseek _lseek
+#define L_SET SEEK_SET
+#else
+#include <unistd.h>
+    #include <fcntl.h>
+    #include <sys/stat.h>
+#endif
 
 #endif //GUOSHUBASE_PF_H

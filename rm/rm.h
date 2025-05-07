@@ -29,7 +29,7 @@
 #include "../guoshubase.h"
 #include "rm_error.h"
 #include "rm_rid.h"
-#include "pf.h"
+#include "../pf/pf.h"
 #include "../utils/predicate.h"
 
 //

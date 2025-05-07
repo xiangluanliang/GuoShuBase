@@ -25,8 +25,8 @@ const int PF_HASH_TBL_SIZE = 20;   // Size of hash table
 #define PF_PAGE_LIST_END  -1       // end of list of free pages
 #define PF_PAGE_USED      -2       // page is being used
 
-#ifndef L_SET
-#define L_SET              0
+#ifndef SEEK_SET
+#define SEEK_SET              0
 #endif
 
 // PF_PageHdr: Header structure for pages

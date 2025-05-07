@@ -16,8 +16,8 @@
 #include <iostream>
 #include "rm_error.h"
 #include "../ix/ix_error.h"
-#include "../sm/sm_error.h"
-#include "../ql/ql_error.h"
+//#include "../sm/sm_error.h"
+//#include "../ql/ql_error.h"
 #include "../pf/pf.h"
 
 using namespace std;
@@ -92,12 +92,12 @@ void PrintErrorAll(RC rc)
     else if ((rc >= START_IX_WARN && rc <= IX_LASTWARN)
              || (-rc >= -START_IX_ERR && -rc <= -IX_LASTERROR))
         IX_PrintError(rc);
-    else if ((rc >= START_SM_WARN && rc <= SM_LASTWARN)
-             || (-rc >= -START_SM_ERR && -rc <= -SM_LASTERROR))
-        SM_PrintError(rc);
-    else if ((rc >= START_QL_WARN && rc <= QL_LASTWARN)
-             || (-rc >= -START_QL_ERR && -rc <= -QL_LASTERROR))
-        QL_PrintError(rc);
+//    else if ((rc >= START_SM_WARN && rc <= SM_LASTWARN)
+//             || (-rc >= -START_SM_ERR && -rc <= -SM_LASTERROR))
+//        SM_PrintError(rc);
+//    else if ((rc >= START_QL_WARN && rc <= QL_LASTWARN)
+//             || (-rc >= -START_QL_ERR && -rc <= -QL_LASTERROR))
+//        QL_PrintError(rc);
     else if (rc == 0)
         cerr << "PrintError called with return code of 0\n";
     else

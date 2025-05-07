@@ -234,7 +234,6 @@ static RC TestPF()
 int main()
 {
     RC rc;
-    pStatisticsMgr = new StatisticsMgr();
 
     // 输出初始信息
     cerr.flush();

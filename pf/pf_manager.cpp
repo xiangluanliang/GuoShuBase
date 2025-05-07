@@ -1,8 +1,8 @@
 #include <cstdio>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <io.h>
+#include <iostream>
 #include "pf_internal.h"
 #include "pf_buffermgr.h"
 #include "pf.h"
@@ -164,17 +164,15 @@ RC PF_Manager::CloseFile(PF_FileHandle &fileHandle)
         return (PF_CLOSEDFILE);
 
     // 刷新此文件的所有缓冲区并写出文件头
-    if ((rc = fileHandle.FlushPages()))
+    if ((rc = fileHandle.FlushPages()) < 0)
         return (rc);
-
     // 关闭文件
     if (close(fileHandle.unixfd) < 0)
         return (PF_UNIX);
-    fileHandle.bFileOpen = FALSE;
 
+    fileHandle.bFileOpen = FALSE;
     // 重置文件句柄中的缓冲区管理器指针
     fileHandle.pBufferMgr = NULL;
-
     // 返回成功
     return 0;
 }

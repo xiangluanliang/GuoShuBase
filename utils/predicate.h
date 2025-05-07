@@ -9,7 +9,7 @@
 #include <cassert>
 #include <cstdio>
 #include <iostream>
-#include "redbase.h"
+#include "../guoshubase.h"
 
 using namespace std;
 

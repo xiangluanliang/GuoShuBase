@@ -18,7 +18,7 @@ using namespace std;
 #include "../utils/statistics.h"   // For StatisticsMgr interface
 
 // Global variable for the statistics manager
-StatisticsMgr *pStatisticsMgr;
+StatisticsMgr *pStatisticsMgr = new StatisticsMgr();;
 #endif
 
 #ifdef PF_LOG
@@ -197,46 +197,49 @@ RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
 // Out:  ppBuffer - set *ppBuffer to point to the page in the buffer
 // Ret:  PF return code
 //
-RC PF_BufferMgr::AllocatePage(int fd, PageNum pageNum, char **ppBuffer)
-{
-    RC  rc;     // return code
-    int slot;   // buffer slot where page is located
+RC PF_BufferMgr::AllocatePage(int fd, PageNum pageNum, char **ppBuffer) {
+    RC rc;
+    int slot;
 
 #ifdef PF_LOG
     char psMessage[100];
-    sprintf (psMessage, "Allocating a page for (%d,%d)....", fd, pageNum);
+    sprintf(psMessage, "Allocating a page for (%d,%d)....", fd, pageNum);
     WriteLog(psMessage);
 #endif
 
-    // If page is already in buffer, return an error
-    if (!(rc = hashTable.Find(fd, pageNum, slot)))
-        return (PF_PAGEINBUF);
-    else if (rc != PF_HASHNOTFOUND)
-        return (rc);              // unexpected error
+    // 如果页面已在缓冲区，直接返回其指针
 
-    // Allocate an empty page
-    if ((rc = InternalAlloc(slot)))
+    // TODO 这种写法其实比较危险，这里的修改和PF_BufferMgr::UnpinPage相关，具体见文档
+    if (!(rc = hashTable.Find(fd, pageNum, slot))) {
+        *ppBuffer = bufTable[slot].pData;
+#ifdef PF_LOG
+        sprintf(psMessage, "Page (%d,%d) already in buffer (slot %d).\n", fd, pageNum, slot);
+        WriteLog(psMessage);
+#endif
+        return 0;
+    } else if (rc != PF_HASHNOTFOUND) {
         return (rc);
+    }
 
-    // Insert the page into the hash table,
-    // and initialize the page description entry
+    // 分配新槽位
+    if ((rc = InternalAlloc(slot))) {
+        return rc;
+    }
+
+    // 插入哈希表并初始化描述符
     if ((rc = hashTable.Insert(fd, pageNum, slot)) ||
         (rc = InitPageDesc(fd, pageNum, slot))) {
-
-        // Put the slot back on the free list before returning the error
         Unlink(slot);
         InsertFree(slot);
         return (rc);
     }
 
 #ifdef PF_LOG
-    WriteLog("Succesfully allocated page.\n");
+    WriteLog("Successfully allocated page.\n");
 #endif
 
-    // Point ppBuffer to page
     *ppBuffer = bufTable[slot].pData;
 
-    // Return ok
     return (0);
 }
 
@@ -335,13 +338,12 @@ RC PF_BufferMgr::UnpinPage(int fd, PageNum pageNum)
 // In:   fd - file descriptor
 // Ret:  PF_PAGEPINNED or other PF return code
 //
-RC PF_BufferMgr::FlushPages(int fd)
-{
-    RC rc, rcWarn = 0;  // return codes
+RC PF_BufferMgr::FlushPages(int fd) {
+    RC rc, rcWarn = 0;
 
 #ifdef PF_LOG
     char psMessage[100];
-    sprintf (psMessage, "Flushing all pages for (%d).\n", fd);
+    sprintf(psMessage, "Flushing all pages for (%d).\n", fd);
     WriteLog(psMessage);
 #endif
 
@@ -349,40 +351,43 @@ RC PF_BufferMgr::FlushPages(int fd)
     pStatisticsMgr->Register(PF_FLUSHPAGES, STAT_ADDONE);
 #endif
 
-    // Do a linear scan of the buffer to find pages belonging to the file
     int slot = first;
     while (slot != INVALID_SLOT) {
-
         int next = bufTable[slot].next;
 
-        // If the page belongs to the passed-in file descriptor
         if (bufTable[slot].fd == fd) {
-
 #ifdef PF_LOG
-            sprintf (psMessage, "Page (%d) is in buffer manager.\n", bufTable[slot].pageNum);
+            sprintf(psMessage, "Page (%d) is in buffer manager.\n", bufTable[slot].pageNum);
             WriteLog(psMessage);
 #endif
-            // Ensure the page is not pinned
+            // 如果是 pinned 页面，记录警告但继续处理其他页面
             if (bufTable[slot].pinCount) {
                 rcWarn = PF_PAGEPINNED;
-            }
-            else {
-                // Write the page if dirty
-                if (bufTable[slot].bDirty) {
 #ifdef PF_LOG
-                    sprintf (psMessage, "Page (%d) is dirty\n",bufTable[slot].pageNum);
-                    WriteLog(psMessage);
+                sprintf(psMessage, "WARNING: Page (%d) is pinned (count=%d), skipping flush.\n",
+                        bufTable[slot].pageNum, bufTable[slot].pinCount);
+                WriteLog(psMessage);
 #endif
-                    if ((rc = WritePage(fd, bufTable[slot].pageNum, bufTable[slot].pData)))
-                        return (rc);
-                    bufTable[slot].bDirty = FALSE;
-                }
+                slot = next;
+                continue;
+            }
 
-                // Remove page from the hash table and add the slot to the free list
-                if ((rc = hashTable.Delete(fd, bufTable[slot].pageNum)) ||
-                    (rc = Unlink(slot)) ||
-                    (rc = InsertFree(slot)))
+            // 写入脏页
+            if (bufTable[slot].bDirty) {
+#ifdef PF_LOG
+                sprintf(psMessage, "Page (%d) is dirty\n", bufTable[slot].pageNum);
+                WriteLog(psMessage);
+#endif
+                if ((rc = WritePage(fd, bufTable[slot].pageNum, bufTable[slot].pData)))
                     return (rc);
+                bufTable[slot].bDirty = FALSE;
+            }
+
+            // 从哈希表移除并释放槽位
+            if ((rc = hashTable.Delete(fd, bufTable[slot].pageNum)) ||
+                (rc = Unlink(slot)) ||
+                (rc = InsertFree(slot))) {
+                return rc;
             }
         }
         slot = next;
@@ -392,9 +397,9 @@ RC PF_BufferMgr::FlushPages(int fd)
     WriteLog("All necessary pages flushed.\n");
 #endif
 
-    // Return warning or ok
     return (rcWarn);
 }
+
 
 //
 // ForcePages
@@ -775,7 +780,7 @@ RC PF_BufferMgr::ReadPage(int fd, PageNum pageNum, char *dest)
 
     // seek to the appropriate place (cast to long for PC's)
     long offset = pageNum * (long)pageSize + PF_FILE_HDR_SIZE;
-    if (lseek(fd, offset, L_SET) < 0)
+    if (lseek(fd, offset, SEEK_SET) < 0)
         return (PF_UNIX);
 
     // Read the data
@@ -813,7 +818,7 @@ RC PF_BufferMgr::WritePage(int fd, PageNum pageNum, char *source)
 
     // seek to the appropriate place (cast to long for PC's)
     long offset = pageNum * (long)pageSize + PF_FILE_HDR_SIZE;
-    if (lseek(fd, offset, L_SET) < 0)
+    if (lseek(fd, offset, SEEK_SET) < 0)
         return (PF_UNIX);
 
     // Read the data

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(pf_tests)
 set(CMAKE_CXX_STANDARD 17)
 
-add_definitions(-DPC -DPF_LOG -DPF_STATS)
+add_definitions(-DPC -DPF_LOG -DPF_STATS -D_WIN32)
 
 add_library(pf
         pf_pagehandle.cpp
