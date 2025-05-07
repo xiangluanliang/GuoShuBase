@@ -6,10 +6,10 @@
 //
 // PF(Page File) 组件的接口，包含三个操作类。
 
-#ifndef GUOSHUBASE_PF_H
-#define GUOSHUBASE_PF_H
+#ifndef PF_H
+#define PF_H
 
-#include "guoshubase.h"
+#include "../guoshubase.h"
 
 //
 // PageNum: uniquely identifies a page in a file

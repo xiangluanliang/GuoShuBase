@@ -7,8 +7,8 @@
 // 啊，第一个类，类目
 // 这个哈希表类提供方法以插入、查找和删除哈希表条目
 
-#ifndef GUOSHUBASE_PF_HASHTABLE_H
-#define GUOSHUBASE_PF_HASHTABLE_H
+#ifndef PF_HASHTABLE_H
+#define PF_HASHTABLE_H
 
 #include "pf_internal.h"
 

@@ -6,8 +6,8 @@
 //
 // 本文件定义了一些最基本的数据规则和返回值规则，包括常量、枚举和错误代码等。
 
-#ifndef GUOSHUBASE_GUOSHUBASE_H
-#define GUOSHUBASE_GUOSHUBASE_H
+#ifndef GUOSHUBASE_H
+#define GUOSHUBASE_H
 
 #define MAXNAME       24                // 关系或属性名（即表名和列名）的最大长度
 #define MAXSTRINGLEN  255               // 字符串类型属性的最大长度

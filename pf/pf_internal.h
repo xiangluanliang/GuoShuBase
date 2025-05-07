@@ -11,8 +11,8 @@
 // 而本文件的数据只供PF组件内部使用，修改这些参数时只用重新编译这个头即可，能避免很多不必要的麻烦
 // 因此，写在这个头中的所有定义都应该只被PF组件内部使用，而这样的参数也都应该写在这里
 
-#ifndef GUOSHUBASE_PF_INTERNAL_H
-#define GUOSHUBASE_PF_INTERNAL_H
+#ifndef PF_INTERNAL_H
+#define PF_INTERNAL_H
 
 #include <cstdlib>
 #include <string>

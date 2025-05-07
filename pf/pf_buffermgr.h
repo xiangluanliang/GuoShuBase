@@ -8,8 +8,8 @@
 // 它的主要功能是从磁盘读取、缓存和管理页面，提供固定（pin）、释放（unpin）、脏页标记（dirty marking）和页面替换等操作。
 
 
-#ifndef GUOSHUBASE_PF_BUFFERMGR_H
-#define GUOSHUBASE_PF_BUFFERMGR_H
+#ifndef PF_BUFFERMGR_H
+#define PF_BUFFERMGR_H
 
 #include "pf_internal.h"
 #include "pf_hashtable.h"
