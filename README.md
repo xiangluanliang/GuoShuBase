@@ -369,3 +369,8 @@ void PF_BufferMgr::ValidatePins() const {
 由于工时原因，目前仍采用复用的方法，还未见其导致的明显错误。
 
 
+
+
+
+## SM组件说明
+

@@ -61,6 +61,11 @@ enum CompOp {
     LE_OP, GE_OP   // Less than or Equal, Greater than or Equal
 };
 
+enum AggFun {
+    NO_F,
+    MIN_F, MAX_F, COUNT_F,
+    SUM_F, AVG_F           // numeric args only
+};
 // 不太懂，可能用于缓冲区管理的，Mark一下，用到了再说，没用到就删了
 // Pin Strategy Hint
 //
