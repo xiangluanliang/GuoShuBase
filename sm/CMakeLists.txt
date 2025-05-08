@@ -5,7 +5,7 @@ add_library(sm
 )
 
 target_include_directories(sm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(sm pf rm ix)
+target_link_libraries(sm pf rm ix ql)
 
 add_executable(sm_test1 dbcreate.cc)
 target_link_libraries(sm_test1 sm)
