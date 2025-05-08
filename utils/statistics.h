@@ -104,7 +104,7 @@ const int STAT_INVALID_ARGS = STAT_BASE+1;  // 方法调用参数无效
 const int STAT_UNKNOWN_KEY  = STAT_BASE+2;  // 未知的统计键值
 
 //----------------------------------------------
-// Redbase的PF组件专用统计键值
+// PF组件专用统计键值
 // 当使用统计功能时，这些常量将作为统计管理器的键值
 //----------------------------------------------
 extern const char *PF_GETPAGE;      // 获取页面次数

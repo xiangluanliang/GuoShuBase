@@ -705,7 +705,7 @@ void PrintError(RC rc)
 //
 // RBparse
 //
-// Desc: Parse redbase commands
+// Desc: Parse guoshubase commands
 //
 RC RBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm)
 {

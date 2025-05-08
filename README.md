@@ -369,8 +369,318 @@ void PF_BufferMgr::ValidatePins() const {
 由于工时原因，目前仍采用复用的方法，还未见其导致的明显错误。
 
 
-
-
-
 ## SM组件说明
+
+### 总体设计
+
+该模块实现了将系统目录（system catalogs）作为数据库中的关系（relations）进行管理的方式，并提供了初始化和与数据库中表/索引交互所需的命令。
+
+- `relcat` 和 `attrcat` 被构建为具有固定模式的 RM 文件。
+- 创建了一个名为 `DataRelInfo` 的结构体（类似于 `DataAttrInfo`），用于表示 `relcat` 中的每条记录。
+- `attrcat` 中的每条记录实质上是一个 `DataAttrInfo` 结构体。
+
+---
+
+### 关键数据结构
+
+`relcat` 中维护的信息包括：
+
+- `recordSize`：每条记录的大小
+- `attrCount`：属性数量
+- `numPages`：该关系使用的页数
+- `numRecords`：该关系中的记录数
+- `relName[MAXNAME+1]`：关系名称
+
+目前，`numPages` 和 `numRecords` 由 `SM_Manager::Load()` 填充，但其他 DML 操作也需要维护这些字段，以保证其作为系统统计信息的有效性。
+
+---
+
+### 测试
+
+- 使用自动化单元测试对各个类进行了测试。
+- 使用了一种流行的测试框架 Google Test，其风格类似 JUnit，使测试过程快速自动化。
+- 参见 `sm_manager_gtest.cc`。
+- 同时生成了测试用的数据文件，配合建议的 `stars/soaps` 数据进行测试。
+
+---
+
+### 已知 Bug / 问题
+
+希望能像操作关系一样打印索引内容。我曾考虑过通过在 `relcat/attrcat` 中添加条目的方式将索引作为完整关系暴露出来，但最终放弃了此方案，以避免妨碍用户创建带有 `.number` 后缀的表。
+
+---
+
+### 1 (a) 系统目录访问频繁，因此建议在打开数据库时也打开系统目录，并在数据库关闭时才关闭目录。你是否实现了该机制？为什么？
+
+是的，我实现了该机制。这样做是因为我认为保持目录文件的打开句柄在代码中是一种方便且有效的做法，可以避免每次执行查询时都需要额外的 IO 或文件系统操作来重新打开目录。
+
+参见 `SM_Manager::OpenDB()`（位于 `sm_manager.cc:50`）来查看如何初始化目录句柄。之后，代码中直接使用这些数据成员访问目录，无需每次重新打开。
+
+---
+
+### 1 (b) 如果你实现了上面的机制，那么对系统目录的更新可能不会立即写入磁盘。例如，若第二次打开目录（如为了实现 help 工具或打印目录内容），可能看不到目录的最新状态。你是如何处理这一问题的？
+
+我通过拦截对目录的所有访问来处理这个问题。因为是单用户、单访问系统，所有调用都通过同一个 `SM_Manager` 实例进行。该实例始终保持目录文件的打开句柄，并在类内部拦截目录访问调用，直接通过成员对象提供目录内容。
+
+参见 `SM_Manager::Print()`（位于 `sm_manager.cc:599`）查看拦截调用的实现方式。
+
+---
+
+### 2 批量加载过程中如果出现错误，你的批量加载工具会怎么处理？不同错误处理方式是否有区别？请简要说明你的处理方式适用于什么场景，什么场景下不适用。
+
+详见 `SM_Manager::Load()`，位于 `sm_manager.cc:513`：
+
+- **情况 a：输入文件为空**  
+  不认为是错误，不进行任何加载。
+
+- **情况 b：列数错误**（第 515 行）  
+  遇到错误行时立即终止加载。该策略适用于数据必须严格正确的场景。不适用于脏数据较多时想尽量加载正确数据的情况。
+
+- **情况 c：属性类型不匹配**（第 513 行）  
+  无法判断 ASCII 数据是否正确，因此依赖用户判断。例如，将浮点数截断为整数读取，或按需求将整数读取为浮点数；若将字符串误认为浮点或整数，将会进行二进制解释。  
+  此行为继承自 `std::stringstream`。当需要严格类型匹配时，该策略不适用。若存在严格规则，需提供输入模式信息。
+
+- **情况 d：插入记录或索引项失败**  
+  遇到错误行时立即失败。不适用于要求全-or-无语义的场景，因为可能会出现部分加载状态。
+
+---
+
+### 3 当执行 `create index` 命令时，你是如何生成传入 `IX_Manager::CreateIndex()` 的文件名和索引号的？该方法是否有限制？
+
+我使用列的偏移量作为索引号，使用 `-1` 表示没有索引。
+
+参见 `SM_Manager::CreateIndex`，位于 `sm_manager.cc:336`：
+
+#### 优点：
+
+- 保证索引号是非负且唯一的，可区分各列
+- 始终可用
+- 属性长度和属性数量是固定的，因此不会无意中超出整型范围
+- 无需扫描已有索引即可生成索引号
+
+#### 缺点：
+
+- 每个属性只能有一个索引（但 GuoShuBase 本身就有此限制）
+- 如果支持 `alter table` 删除属性，将需要调整磁盘上其他列的所有偏移和索引号
+
+
+
+
+## QL组件说明
+
+### 参考资料
+
+* 《Database Systems: The Complete Book》作者：Hector Garica-Molina, Jeffrey Ullman, Jennifer Widom
+* 《Database Management Systems》作者：Raghu Ramakrishnan, Johannes Gehrke
+* Minibase 文档：cs.wisc.edu
+
+---
+
+### 总体设计
+
+本查询语言实现遵循迭代器模型。所有物理操作符均实现为迭代器，这些迭代器可彼此嵌套组合，从而实现灵活的查询计划构造。
+
+对用户提交的查询进行了完整的语义检查，参见 `sm_manager.cc` 中的 `SM_Manager::SemCheck()` 方法。系统还会将 `select *` 语句和所有条件进行基础重写。
+
+逻辑查询计划到物理查询计划的转换主要基于启发式方法。仅考虑**左深连接树**。选择计划时使用的主要统计信息包括：关系中的页数和记录数。连接顺序会优先选择较小的关系作为外部连接表。
+
+只要条件允许，系统会优先使用索引。过滤器尽可能下推。无法继续下推的过滤器则在操作符输出端应用。索引扫描支持不同顺序（升序/降序），以便在 `<, >, =` 等操作中优化提前退出。
+
+* 当右侧迭代器为索引扫描时，将使用 **嵌套循环索引连接（NestedLoopIndexJoin, NLIJ）**
+* 当左侧迭代器为文件扫描时，将使用 **块嵌套循环连接（NestedBlockJoin）**
+* 还实现了基本的 **嵌套循环连接（NestedLoopJoin）** 用于非叶子连接和交叉连接（笛卡尔积）
+
+Insert 子句使用独立的逐记录实现，而非重用批量加载器，以减少对系统目录等元操作的频繁访问。
+
+Update 子句单独实现，未复用 Delete/Insert 的逻辑，以实现**单次遍历（single-pass）**。为避免“**万圣节问题（Halloween Problem）**”，当更新属性即为索引属性时，不会选择索引扫描。
+
+---
+
+### 已实现的物理操作符
+
+* FileScan（文件扫描）
+* IndexScan（索引扫描）
+* NestedLoopJoin（嵌套循环连接）
+* Projection（投影）
+* NestedLoopIndexJoin（继承自 NLJ）
+* NestedBlockJoin（继承自 NLJ）
+
+Filter 并非独立实现，而是集成在上述各操作符中。Projection 和 Join 可嵌套其他迭代器，实现灵活组合。
+
+参见 `iterator.h`，该文件定义了所有操作符继承的 `Iterator` 接口及 `Tuple` 元组类。
+
+---
+
+### 测试情况
+
+所有类均通过自动化单元测试进行测试。
+各迭代器对应的测试文件见 `*_gtest.cc`。
+另有完整 RQL 脚本测试 `ql_test.[1-7]`。
+
+---
+
+### 已知问题 / Bug
+
+无特别记录的问题。
+
+---
+
+### 设计问答
+
+#### 1. 查询优化器问题
+
+**查询 Q：**
+
+```sql
+Select R.A, T.D
+From  R, S, T
+Where R.A = S.B and T.D = S.C
+```
+
+R.A 和 S.C 有索引。
+
+示例数据表及索引：
+
+```sql
+create table stars(starid i, stname c20, plays c12, soapid i);
+create table soaps(soapid i, sname c28, network c4, rating f);
+create table networks(nid i, name c4, viewers i);
+
+create index stars(soapid);
+create index soaps(network);
+```
+
+查询：
+
+```sql
+select stars.soapid, networks.name
+from stars, soaps, networks
+where 
+	stars.soapid = soaps.soapid
+and	networks.name = soaps.network;
+```
+
+##### (a) 查询优化器生成的物理计划（Pretty-Print 格式）
+
+```
+Project
+   nProjections = 2
+      stars.soapid, networks.name
+-----NestedLoopIndexJoin
+   nJoinConds = 1
+   joinConds[0]: stars.soapid = soaps.soapid
+----------NestedLoopIndexJoin
+   nJoinConds = 1
+   joinConds[0]: networks.name = soaps.network
+---------------FileScan
+   relName = networks
+---------------IndexScan
+   relName = soaps
+   attrName = network
+----------IndexScan
+   relName = stars
+   attrName = soapid
+```
+
+所使用的统计信息仅包括：关系的记录数和页数。
+
+##### (b) 优化器在语义检查后生成计划的步骤：
+
+1. 按记录数对所有关系排序，记录数少的在前
+
+   ```cpp
+   ql_manager.cc:238
+   ```
+
+   排序结果示例：`(T, S, R)`
+
+2. 始终采用左深连接树的查询形状
+
+   ```cpp
+   ql_manager.cc:250
+   ```
+
+3. 对于最左边（外层）关系选择 FileScan（若无合适索引）
+
+   ```cpp
+   QL_Manager::GetLeafIterator()
+   ql_manager.cc:817
+   ```
+
+4. 对每个下一关系选择 IndexScan（如存在索引）
+
+   ```cpp
+   ql_manager.cc:280
+   ```
+
+5. 若右操作数为 IndexScan 且为连接条件，则使用 NestedLoopIndexJoin
+
+   ```cpp
+   ql_manager.cc:280
+   ```
+
+最终生成的计划结构为：
+
+```
+((FileScan T) NLIJ IndexScan S) NLIJ IndexScan R
+```
+
+##### (c) 是否使用了两个索引？是否存在同时使用两个索引的计划？
+
+是的，计划中使用了两个索引。这是基于假设：连接选择率较小，使用索引查找是最高效的方式。优化器不会区分等值连接和交叉连接的策略，只是在非等值连接时禁用了某些计划（如 NLIJ）。
+
+---
+
+#### 2. 在执行 update/delete 时，如果有索引，是否使用？
+
+会使用。调用逻辑与查询中一致：
+
+* 使用 `QL_Manager::GetLeafIterator()` 判断是否能用索引
+
+  ```cpp
+  ql_manager.cc:817
+  ```
+
+* Delete 操作检查位置：
+
+  ```cpp
+  ql_manager.cc:541
+  ```
+
+* Update 操作检查位置：
+
+  ```cpp
+  ql_manager.cc:696
+  ```
+
+Update 特别处理了万圣节问题。
+
+---
+
+#### 3. 中间元组如何构造和传递？如何管理元组的 schema？
+
+定义了 `Tuple` 类型用于中间元组传递，详见：
+
+```cpp
+iterator.h:18
+```
+
+所有操作符中的 `GetNext()` 方法都会使用 `Tuple`。
+每个 `Tuple` 包含指向 `DataAttrInfo`（属性信息）的指针，用于描述其 Schema。
+这些 Schema 信息由迭代器本身持有。
+
+通常构造方式如下：
+
+```cpp
+Iterator it;
+...
+Tuple t = it.GetTuple();
+```
+
+例如可见：
+
+```cpp
+nested_block_join.h:59
+NestedBlockJoin::GetNext() 中的 Tuple 使用
+```
 

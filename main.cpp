@@ -1,9 +1,3 @@
-//
-// redbase.cc
-//
-// Author: Jason McHugh (mchughj@cs.stanford.edu)
-//
-// This shell is provided for the student.
 
 #include <iostream>
 #include <cstdio>
