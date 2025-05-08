@@ -6,8 +6,8 @@
 //
 // 本文件定义了一些最基本的数据规则和返回值规则，包括常量、枚举和错误代码等。
 
-#ifndef GUOSHUBASE_GUOSHUBASE_H
-#define GUOSHUBASE_GUOSHUBASE_H
+#ifndef GUOSHUBASE_H
+#define GUOSHUBASE_H
 
 #define MAXNAME       24                // 关系或属性名（即表名和列名）的最大长度
 #define MAXSTRINGLEN  255               // 字符串类型属性的最大长度
@@ -61,6 +61,11 @@ enum CompOp {
     LE_OP, GE_OP   // Less than or Equal, Greater than or Equal
 };
 
+enum AggFun {
+    NO_F,
+    MIN_F, MAX_F, COUNT_F,
+    SUM_F, AVG_F           // numeric args only
+};
 // 不太懂，可能用于缓冲区管理的，Mark一下，用到了再说，没用到就删了
 // Pin Strategy Hint
 //
