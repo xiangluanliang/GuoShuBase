@@ -36,13 +36,51 @@ void PrintError(RC rc) {
         cerr << "Error code out of range: " << rc << "\n";
 }
 
+// 如果某个 attrName 出现在多张表中则抛异常
+RC ResolveAttrRelName(SM_Manager &smm,
+                      const std::vector<char*> &relations,
+                      const char *attrName,
+                      char *&relNameOut) {
+    if(strcmp(attrName,"*") == 0) return 0;
+    RC rc;
+    relNameOut = nullptr;
+
+    DataAttrInfo attr;
+    RID rid;
+
+    for (char *rel : relations) {
+        rc = smm.GetAttrFromCat(rel, attrName, attr, rid);
+//        cerr << rel << ":" << attrName << endl;
+        if (rc == 0) {
+            if (relNameOut != nullptr) {
+                // 已经找到过一次返回冲突错误
+//                PrintError(QL_AMBIGUOUSATTR);
+                return QL_AMBIGUOUSATTR;
+            }
+            relNameOut = rel; // 暂存
+        } else if (rc != SM_BADATTR) {
+            // 其他错误（不是找不到字段），直接返回
+            return rc;
+        }
+        // rc == SM_NOSUCHENTRY 继续找下一张表
+    }
+
+    if (!relNameOut) {
+//        PrintError(QL_ATTRNOTFOUND);
+        return QL_ATTRNOTFOUND;
+    }
+
+    return 0;
+}
+
+
 
 RC GBparseSQL(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm, const char *sql) {
-
+    RC rc;
     std::vector<Token> tokens;
     try {
         tokens = Tokenize(sql);
-    } catch (exception e) {
+    } catch (const std::exception &e) {
         std::cerr << e.what() << std::endl;
         return QL_INVALIDQUERY;
     }
@@ -51,68 +89,126 @@ RC GBparseSQL(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm, const char *sql
     if (!ParseSQL(tokens, query)) {
         return QL_INVALIDQUERY;
     }
-    for (auto t : query.selAttrs) {
-        cout << t << endl;
-    }for (auto t : query.relations) {
-        cout << t << endl;
-    }
 
-
-
-
+    // 用于释放临时分配的堆内存
+    std::vector<AggRelAttr> selAttrBuffer;
+    std::vector<const char *> relNameBuffer;
 
     switch (query.type) {
         case SQLType::SELECT: {
-            // 转换 SELECT 查询参数
-            int nSelAttrs = query.selAttrs.size();
-            AggRelAttr *selAttrs = query.selAttrs.data();
+            char *resolvedRelName;
+            for (const auto &srcAttr : query.selAttrs) {
+                AggRelAttr attr;
+                attr.func = srcAttr.func;
+                if (srcAttr.relName) {
+                    attr.relName = strdup(srcAttr.relName);
+                } else {
+                    resolvedRelName = nullptr;
+                    if ((rc = ResolveAttrRelName(smm, query.relations, srcAttr.attrName, resolvedRelName)))
+                        return rc;
+                    attr.relName = strdup(resolvedRelName);
+                }
+                attr.attrName = srcAttr.attrName ? strdup(srcAttr.attrName) : strdup("");
+                selAttrBuffer.push_back(attr);
+            }
 
-            int nRelations = query.relations.size();
-            const char **relations = const_cast<const char **>(query.relations.data());
+            for (char *r : query.relations)
+                relNameBuffer.push_back(r);
 
-            int nConditions = query.conditions.size();
-            Condition *conditions = query.conditions.data();
+            // 修复 ORDER BY 字段
+            RelAttr orderAttr = {strdup(""), strdup("")};
+            if (query.hasOrderBy && !query.orderAttrs.empty()) {
+                orderAttr = query.orderAttrs[0];
+                if (!orderAttr.relName) {
+                    resolvedRelName = nullptr;
+                    if ((rc = ResolveAttrRelName(smm, query.relations, orderAttr.attrName, resolvedRelName)))
+                        return rc;
+                    orderAttr.relName = strdup(resolvedRelName);
+                }
+            }
 
-            // 处理 ORDER BY
-            int order = query.hasOrderBy ? 1 : 0;
-            RelAttr orderAttr = query.hasOrderBy && !query.orderAttrs.empty() ?
-                                query.orderAttrs[0] : RelAttr{nullptr, nullptr};
+            // 修复 GROUP BY 字段
+            RelAttr groupAttr = {strdup(""), strdup("")};
+            if (query.hasGroupBy) {
+                groupAttr = query.groupAttr;
+                if (!groupAttr.relName) {
+                    resolvedRelName = nullptr;
+                    if ((rc = ResolveAttrRelName(smm, query.relations, groupAttr.attrName, resolvedRelName)))
+                        return rc;
+                    groupAttr.relName = strdup(resolvedRelName);
+                }
+            }
 
-            // 处理 GROUP BY
-            bool group = query.hasGroupBy;
-            RelAttr groupAttr = query.groupAttr;
+            // 修复 WHERE 子句字段
+            for (Condition& cond : query.conditions) {
+                if (!cond.lhsAttr.relName) {
+                    resolvedRelName = nullptr;
+                    if ((rc = ResolveAttrRelName(smm, query.relations, cond.lhsAttr.attrName, resolvedRelName)))
+                        return rc;
+                    cond.lhsAttr.relName = strdup(resolvedRelName);
+                }
+                if (cond.bRhsIsAttr && !cond.rhsAttr.relName) {
+                    resolvedRelName = nullptr;
+                    if ((rc = ResolveAttrRelName(smm, query.relations, cond.rhsAttr.attrName, resolvedRelName)))
+                        return rc;
+                    cond.rhsAttr.relName = strdup(resolvedRelName);
+                }
+            }
 
-            return qlm.Select(nSelAttrs, selAttrs, nRelations, relations,
-                              nConditions, conditions, order, orderAttr, group, groupAttr);
+            return qlm.Select(
+                    selAttrBuffer.size(),
+                    selAttrBuffer.data(),
+                    relNameBuffer.size(),
+                    relNameBuffer.data(),
+                    query.conditions.size(),
+                    query.conditions.data(),
+                    query.hasOrderBy ? 1 : 0,
+                    orderAttr,
+                    query.hasGroupBy,
+                    groupAttr
+            );
         }
 
+
         case SQLType::INSERT: {
-            return qlm.Insert(query.insertTableName,
-                              query.values.size(),
-                              query.values.data());
+            const char *relName = query.insertTableName ? query.insertTableName : "dummy";
+            int nValues = query.values.size();
+            const Value *values = nValues ? query.values.data() : nullptr;
+            return qlm.Insert(relName, nValues, values);
         }
 
         case SQLType::DELETE: {
-            return qlm.Delete(query.deleteTableName,
-                              query.conditions.size(),
-                              query.conditions.data());
+            const char *relName = query.deleteTableName ? query.deleteTableName : "dummy";
+            int nConditions = query.conditions.size();
+            const Condition *conditions = nConditions ? query.conditions.data() : nullptr;
+            return qlm.Delete(relName, nConditions, conditions);
         }
 
         case SQLType::UPDATE: {
-            return qlm.Update(query.updateTableName,
-                              query.updateAttr,
-                              query.updateIsValue ? 1 : 0,
-                              query.updateRhsAttr,
-                              query.updateValue,
-                              query.conditions.size(),
-                              query.conditions.data());
+            const char *relName = query.updateTableName ? query.updateTableName : "dummy";
+            int bIsValue = query.updateIsValue ? 1 : 0;
+
+            static int dummyInt = 0;
+            const Value &rhsValue = query.updateIsValue
+                                    ? query.updateValue
+                                    : Value{INT, &dummyInt};
+
+            return qlm.Update(
+                    relName,
+                    query.updateAttr,
+                    bIsValue,
+                    bIsValue ? RelAttr{strdup(""), strdup("")} : query.updateRhsAttr,
+                    rhsValue,
+                    query.conditions.size(),
+                    query.conditions.data()
+            );
         }
 
         default:
             return QL_INVALIDQUERY;
     }
-
 }
+
 
 
 RC GBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm) {
@@ -122,37 +218,13 @@ RC GBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm) {
         string input;
         if (!getline(cin, input)) break;
 
-        std::cout<< input.c_str() <<std::endl;
-        
-        rc = GBparseSQL(pfm, smm, qlm, input.c_str());
-        if (rc != QL_INVALIDQUERY) {
-            if (rc) PrintError(rc);
+        if((rc = GBparseSQL(pfm, smm, qlm, input.c_str()))){
+            PrintError(rc);
             continue;
-        }
+        };
     }
     return rc;
 }
-
-void FreeAttrInfo(AttrInfo &ai) {
-    free(ai.attrName);
-    ai.attrName = nullptr;
-}
-
-void FreeRelAttr(RelAttr &ra) {
-    free(ra.relName);
-    free(ra.attrName);
-    ra.relName = ra.attrName = nullptr;
-}
-
-void FreeValue(Value &v) {
-    if (v.data) {
-        if (v.type == STRING) free(v.data);
-        else if (v.type == INT) delete (int *) v.data;
-        else if (v.type == FLOAT) delete (float *) v.data;
-        v.data = nullptr;
-    }
-}
-
 
 //
 // Functions for printing the various structures to an output stream

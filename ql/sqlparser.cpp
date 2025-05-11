@@ -55,43 +55,6 @@ private:
     const std::vector<Token> &tokens;
     size_t pos;
 
-    // Helper functions
-    static char* AllocCopyString(const std::string& s) {
-        char* p = strdup(s.c_str());
-        if (!p) throw std::bad_alloc();
-        return p;
-    }
-
-    static void FreeValue(Value& v) {
-        if (v.type == STRING) {
-            free(v.data);
-        } else if (v.type == INT) {
-            delete static_cast<int*>(v.data);
-        }
-        v.data = nullptr;
-    }
-
-    static void FreeRelAttr(RelAttr& attr) {
-        free(attr.relName);
-        free(attr.attrName);
-        attr.relName = attr.attrName = nullptr;
-    }
-
-    static void FreeAggRelAttr(AggRelAttr& attr) {
-        free(attr.relName);
-        free(attr.attrName);
-        attr.relName = attr.attrName = nullptr;
-    }
-
-    static void FreeCondition(Condition& cond) {
-        FreeRelAttr(cond.lhsAttr);
-        if (cond.bRhsIsAttr) {
-            FreeRelAttr(cond.rhsAttr);
-        } else {
-            FreeValue(cond.rhsValue);
-        }
-    }
-
     Token peek() const {
         return pos < tokens.size() ? tokens[pos] : Token{TokenType::END, ""};
     }
@@ -222,31 +185,45 @@ private:
             AggRelAttr attr;
             attr.func = NO_F;
             attr.relName = nullptr;
+            attr.attrName = nullptr;
 
-            if (peek().type == TokenType::IDENTIFIER) {
-                attr.attrName = AllocCopyString(next().text);
-            } else if (peek().type == TokenType::STAR) {
-                next();
-                attr.attrName = AllocCopyString("*");
-            } else if (peek().type == TokenType::IDENTIFIER &&
-                       (peek().text == "COUNT" || peek().text == "SUM" || peek().text == "AVG")) {
+            if (peek().type == TokenType::IDENTIFIER &&
+                (peek().text == "COUNT" || peek().text == "SUM" || peek().text == "AVG" ||
+                 peek().text == "MIN" || peek().text == "MAX")) {
+                // 聚合函数
                 attr.func = strToAggFun(next().text);
                 if (!match(TokenType::LPAREN)) return false;
                 if (peek().type == TokenType::STAR) {
                     next();
                     attr.attrName = AllocCopyString("*");
                 } else {
-                    attr.attrName = AllocCopyString(next().text);
+                    RelAttr ra;
+                    if (!parseRelAttr(ra)) return false;
+                    attr.relName = ra.relName ? AllocCopyString(ra.relName) : nullptr;
+                    attr.attrName = ra.attrName ? AllocCopyString(ra.attrName) : nullptr;
                 }
                 if (!match(TokenType::RPAREN)) return false;
+            } else if (peek().type == TokenType::STAR) {
+                // SELECT *
+                next();
+                attr.attrName = AllocCopyString("*");
+                attr.relName = nullptr;
+                attr.func = NO_F;
             } else {
-                return false;
+                // 普通字段或 rel.attr
+                RelAttr ra;
+                if (!parseRelAttr(ra)) return false;
+                attr.func = NO_F;
+                attr.relName = ra.relName ? AllocCopyString(ra.relName) : nullptr;
+                attr.attrName = ra.attrName ? AllocCopyString(ra.attrName) : nullptr;
             }
+
             attrs.push_back(attr);
         } while (match(TokenType::COMMA));
 
         return true;
     }
+
 
     bool parseTableList(std::vector<char*> &tables) {
         do {
@@ -256,41 +233,61 @@ private:
     }
 
     bool parseRelAttr(RelAttr &attr) {
-        attr.relName = nullptr;
-        attr.attrName = AllocCopyString(next().text);
+        // 解析 rel.attr 或 attr
+        if (peek().type != TokenType::IDENTIFIER) return false;
+        std::string first = next().text;
+
+        if (match(TokenType::DOT)) {
+            // rel.attr 形式
+            if (peek().type != TokenType::IDENTIFIER) return false;
+            std::string second = next().text;
+            attr.relName = AllocCopyString(first);
+            attr.attrName = AllocCopyString(second);
+        } else {
+            // attr 形式
+            attr.relName = nullptr;
+            attr.attrName = AllocCopyString(first);
+        }
         return true;
     }
+
 
     bool parseConditionList(std::vector<Condition> &conds) {
         do {
             Condition cond;
+
+            // lhsAttr
             if (!parseRelAttr(cond.lhsAttr)) return false;
 
+            // 比较操作符
             TokenType opToken = peek().type;
             cond.op = tokenToCompOp(opToken);
             if (cond.op == NO_OP) return false;
-            next();
+            next(); // consume operator
 
+            // rhs 可能是 attr 或 literal
             if (peek().type == TokenType::IDENTIFIER) {
-                cond.bRhsIsAttr = true;
+                cond.bRhsIsAttr = 1;
                 if (!parseRelAttr(cond.rhsAttr)) return false;
             } else if (peek().type == TokenType::INT_LITERAL) {
-                cond.bRhsIsAttr = false;
+                cond.bRhsIsAttr = 0;
                 cond.rhsValue.type = INT;
-                int* num = new int(std::stoi(next().text));
-                cond.rhsValue.data = num;
+                int* val = new int(std::stoi(next().text));
+                cond.rhsValue.data = val;
             } else if (peek().type == TokenType::STRING_LITERAL) {
-                cond.bRhsIsAttr = false;
+                cond.bRhsIsAttr = 0;
                 cond.rhsValue.type = STRING;
                 cond.rhsValue.data = AllocCopyString(next().text);
             } else {
                 return false;
             }
+
             conds.push_back(cond);
         } while (match(TokenType::AND));
 
         return true;
     }
+
 
     AggFun strToAggFun(const std::string &s) {
         if (s == "COUNT") return COUNT_F;
@@ -310,6 +307,45 @@ private:
             default: return NO_OP;
         }
     }
+
+
+    // Helper functions
+    static char* AllocCopyString(const std::string& s) {
+        char* p = strdup(s.c_str());
+        if (!p) throw std::bad_alloc();
+        return p;
+    }
+
+    static void FreeValue(Value& v) {
+        if (v.data) {
+            if (v.type == STRING) free(v.data);
+            else if (v.type == INT) delete (int *) v.data;
+            else if (v.type == FLOAT) delete (float *) v.data;
+            v.data = nullptr;
+        }
+    }
+
+    static void FreeRelAttr(RelAttr& attr) {
+        free(attr.relName);
+        free(attr.attrName);
+        attr.relName = attr.attrName = nullptr;
+    }
+
+    static void FreeAggRelAttr(AggRelAttr& attr) {
+        free(attr.relName);
+        free(attr.attrName);
+        attr.relName = attr.attrName = nullptr;
+    }
+
+    static void FreeCondition(Condition& cond) {
+        FreeRelAttr(cond.lhsAttr);
+        if (cond.bRhsIsAttr) {
+            FreeRelAttr(cond.rhsAttr);
+        } else {
+            FreeValue(cond.rhsValue);
+        }
+    }
+
 };
 
 bool ParseSQL(const std::vector<Token> &tokens, ParsedQuery &out) {

@@ -68,6 +68,7 @@ class QL_Manager;
 class SM_Manager;
 
 RC GBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm);
+RC GBparseSQL(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm,const char *sql);
 
 //
 // Error printing function; calls component-specific functions

@@ -32,7 +32,9 @@ void QL_PrintError(RC rc);
 #define QL_BADOPEN         (START_QL_ERR - 7)
 #define QL_EOF             (START_QL_ERR - 8)
 #define QL_INVALIDQUERY    (START_QL_ERR - 9)
+#define QL_ATTRNOTFOUND    (QL_INVALIDQUERY - 1) //Attribute not found
+#define QL_AMBIGUOUSATTR   (QL_INVALIDQUERY - 2) //Ambiguous attribute
 
-#define QL_LASTERROR QL_EOF
+#define QL_LASTERROR QL_AMBIGUOUSATTR
 
 #endif // QL_ERROR_H

@@ -36,24 +36,26 @@ int main(int argc, char* argv[]) {
     if ((rc = smm.OpenDb(dbname)))
         PrintErrorExit(rc);
 
-    if(//(rc = smm.Load("student","student"))||
-            (rc = smm.Print("STUDENT")))
-        PrintErrorExit(rc);
-    // 调用解析器主循环 GBparse(pfm, smm, qlm);
-    AggRelAttr ss = {
-            NO_F,"STUDENT","id"
-    };
+    RC parseRC;
+//    if(//(rc = smm.Load("student","student"))||
+//            (rc = smm.Print("STUDENT")))
+//        PrintErrorExit(rc);
 
-    char* rs[] = {"STUDENT"};
-    Condition cs[] = {};
-    RelAttr orderAttr;
-    RelAttr groupAttr;
-    RC parseRC
-    = qlm.Select(1, &ss, 1, rs,
-                      0, cs,
-                      0, orderAttr,
-                 false, groupAttr);
+//    AggRelAttr ss = {
+//            NO_F,"STUDENT","id"
+//    };
+//
+//    char* rs[] = {"STUDENT"};
+//    Condition cs[] = {};
+//    RelAttr orderAttr;
+//    RelAttr groupAttr;
+//    parseRC
+//    = qlm.Select(1, &ss, 1, rs,
+//                      0, cs,
+//                      0, orderAttr,
+//                 false, groupAttr);
 
+    rc = GBparse(pfm, smm, qlm);
     // 关闭数据库
     if ((rc = smm.CloseDb()))
         PrintErrorExit(rc);
