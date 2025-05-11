@@ -40,13 +40,20 @@ int main(int argc, char* argv[]) {
             (rc = smm.Print("STUDENT")))
         PrintErrorExit(rc);
     // 调用解析器主循环 GBparse(pfm, smm, qlm);
-    AggRelAttr selAttrs = {
+    AggRelAttr ss = {
             NO_F,"STUDENT","id"
     };
 
-    RC parseRC;
-//    = qlm.Select(1, selAttrs, 1, relations,
-//                      nConditions, conditions, order, orderAttr, group, groupAttr);
+    char* rs[] = {"STUDENT"};
+    Condition cs[] = {};
+    RelAttr orderAttr;
+    RelAttr groupAttr;
+    RC parseRC
+    = qlm.Select(1, &ss, 1, rs,
+                      0, cs,
+                      0, orderAttr,
+                 false, groupAttr);
+
     // 关闭数据库
     if ((rc = smm.CloseDb()))
         PrintErrorExit(rc);
