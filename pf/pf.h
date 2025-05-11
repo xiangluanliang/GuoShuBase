@@ -10,23 +10,22 @@
 #define PF_H
 
 #include "../guoshubase.h"
+#include "../utils/fileio.h"
 
 //
-// PageNum: uniquely identifies a page in a file
-//
+// PageNum: 一个文件中page的唯一标识符
 typedef int PageNum;
 
-// Page Size
+// 页面大小
 //
-// Each page stores some header information.  The PF_PageHdr is defined
-// in pf_internal.h and contains the information that we would store.
-// Unfortunately, we cannot use sizeof(PF_PageHdr) here, but it is an
-// int and we simply use that.
+// 每个页面都存储一些信息，PF_PageHdr 在pf_internal.h里，
+// 并包含了应有的信息
+// 但这里没法写sizeof(PF_PageHdr)，只能用纯int了
 //
 const int PF_PAGE_SIZE = 4096 - sizeof(int);
 
 //
-// PF_PageHandle: PF page interface
+// PF_PageHandle: PF 页面接口
 //
 class PF_PageHandle {
     friend class PF_FileHandle;
@@ -195,28 +194,5 @@ void PF_PrintError(RC rc);
 // Error in UNIX system call or library routine
 #define PF_UNIX            (START_PF_ERR - 10) // Unix error
 #define PF_LASTERROR       PF_UNIX
-
-#ifdef _WIN32
-#include <io.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#define open _open
-#define close _close
-#define read _read
-#define write _write
-#define unlink _unlink
-#define O_RDWR _O_RDWR
-#define O_BINARY _O_BINARY
-#define O_CREAT _O_CREAT
-#define O_EXCL _O_EXCL
-#define S_IREAD _S_IREAD
-#define S_IWRITE _S_IWRITE
-#define lseek _lseek
-#define L_SET SEEK_SET
-#else
-#include <unistd.h>
-    #include <fcntl.h>
-    #include <sys/stat.h>
-#endif
 
 #endif //GUOSHUBASE_PF_H
