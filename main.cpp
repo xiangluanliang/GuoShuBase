@@ -56,6 +56,7 @@ int main(int argc, char* argv[]) {
 //                 false, groupAttr);
 
     rc = GBparse(pfm, smm, qlm);
+
     // 关闭数据库
     if ((rc = smm.CloseDb()))
         PrintErrorExit(rc);
