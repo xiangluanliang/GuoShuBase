@@ -205,7 +205,10 @@ int main(int argc, char *argv[])
   a.indexNo = -1;
        if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
     PrintErrorExit(rc);
-
+    if ((rc =  rmm.CloseFile(attrfh)) < 0
+        || (rc =  rmm.CloseFile(relfh)) < 0
+        )
+        PrintErrorExit(rc);
 
    AttrInfo attrs[3];
 
@@ -235,19 +238,16 @@ int main(int argc, char *argv[])
     (rc1 = smm.CreateTable("STUDENT", 3, attrs)))
         PrintErrorExit(rc1);
 
-    if(rc1 = smm.Print("STUDENT"))
+    if((rc1 = smm.Print("STUDENT")))
         PrintErrorExit(rc1);
 
     for (int i = 0; i < 3; ++i) {
         delete[] attrs[i].attrName;
     }
-//    if(rc1 = smm.DropTable("student"))
-//        PrintErrorExit(rc1);
+    if((rc1 = smm.CloseDb()))
+        PrintErrorExit(rc1);
 
-  if ((rc =  rmm.CloseFile(attrfh)) < 0
-    || (rc =  rmm.CloseFile(relfh)) < 0
-    || (rc = smm.CloseDb()))
-    PrintErrorExit(rc);
+
 
   return(0);
 }
