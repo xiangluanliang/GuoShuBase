@@ -130,11 +130,11 @@ RC RM_FileScan::GetNextRec     (RM_Record &rec)
                 // not free - means this is useful data to us
                 current = RID(j, i);
                 prmh->GetRec(current, rec);
-                // std::cerr << "GetNextRec ret RID " << current << std::endl;
+//                 std::cerr << "GetNextRec ret RID " << current << std::endl;
                 char * pData = NULL;
                 rec.GetData(pData);
                 if(pred->eval(pData, pred->initOp())) {
-                    // std::cerr << "GetNextRec pred match for RID " << current << std::endl;
+//                     std::cerr << "GetNextRec pred match for RID " << current << std::endl;
                     return 0;
                 } else {
                     // get next rec

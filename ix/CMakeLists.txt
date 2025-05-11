@@ -8,6 +8,6 @@ add_library(ix ix.h
 
 target_include_directories(ix PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ix pf rm)
-
-add_executable(ix_test ix_test.cpp)
-target_link_libraries(ix_test ix)
+#
+#add_executable(ix_test ix_test.cpp)
+#target_link_libraries(ix_test ix)

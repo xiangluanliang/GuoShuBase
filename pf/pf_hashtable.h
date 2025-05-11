@@ -10,6 +10,8 @@
 #ifndef PF_HASHTABLE_H
 #define PF_HASHTABLE_H
 
+#include <list>
+#include <utility>
 #include "pf_internal.h"
 
 struct PF_HashEntry {
@@ -20,10 +22,19 @@ struct PF_HashEntry {
     int slot;    // 页面在缓冲池中的槽位，标记该页面所在的缓存位置
 };
 
+struct PF_HashKey {
+    int fd;
+    PageNum pageNum;
+
+    bool operator==(const PF_HashKey &other) const {
+        return fd == other.fd && pageNum == other.pageNum;
+    }
+};
+
 class PF_HashTable {
 public:
     PF_HashTable(int numBuckets);           // 构造器，numBuckets指定哈希表的桶数
-    ~PF_HashTable();                         // 析构
+    ~PF_HashTable() = default;                         // 析构
     RC Find(int fd, PageNum pageNum, int &slot);
 
     // 通过 fd 和 pageNum
@@ -35,8 +46,8 @@ public:
 
 private:
     int Hash(int fd, PageNum pageNum) const { return ((fd + pageNum) % numBuckets); }   // 内部哈希函数
-    int numBuckets;                               // 桶数
-    PF_HashEntry **hashTable;                     // 指向哈希表的指针，存储多个 PF_HashEntry 的指针数组
+    int numBuckets;  // 桶数
+    std::list<std::pair<PF_HashKey, int>> *hashTable;  // 每个桶是一个链表
 };
 
-#endif //GUOSHUBASE_PF_HASHTABLE_H
+#endif //PF_HASHTABLE_H

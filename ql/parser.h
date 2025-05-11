@@ -67,7 +67,7 @@ std::ostream &operator<<(std::ostream &s, const AttrType &at);
 class QL_Manager;
 class SM_Manager;
 
-RC RBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm);
+RC GBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm);
 
 //
 // Error printing function; calls component-specific functions

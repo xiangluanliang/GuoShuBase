@@ -67,7 +67,6 @@ SM_Manager *pSmm;          // SM component manager
 QL_Manager *pQlm;          // QL component manager
 
 %}
-
 %union{
     int ival;
     CompOp cval;
@@ -76,7 +75,9 @@ QL_Manager *pQlm;          // QL component manager
     char *sval;
     NODE *n;
 }
-
+%token <ival> INTNUM
+%token <rval> FLOATNUM
+%token <sval> IDENT
 %token
       RW_CREATE
       RW_DROP
@@ -707,7 +708,7 @@ void PrintError(RC rc)
 //
 // Desc: Parse guoshubase commands
 //
-RC RBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm)
+RC GBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm)
 {
    RC rc;
 

@@ -15,27 +15,8 @@
 // 输入: numBuckets - 哈希表桶的数量
 //
 
-PF_HashTable::PF_HashTable(int _numBuckets) {
-    this->numBuckets = _numBuckets;
-    hashTable = new PF_HashEntry *[numBuckets];
-    for (int i = 0; i < numBuckets; i++)
-        hashTable[i] = nullptr;
-}
-//
-// ~PF_HashTable
-//
-// 描述: 析构函数
-//
-PF_HashTable::~PF_HashTable() {
-    for (int i = 0; i < numBuckets; i++) {
-        PF_HashEntry *entry = hashTable[i];
-        while (entry != nullptr) {
-            PF_HashEntry *next = entry->next;
-            delete entry;
-            entry = next;
-        }
-    }
-    delete[] hashTable;
+PF_HashTable::PF_HashTable(int _numBuckets) : numBuckets(_numBuckets) {
+    hashTable = new std::list<std::pair<PF_HashKey, int>>[numBuckets];
 }
 
 //
@@ -49,17 +30,14 @@ PF_HashTable::~PF_HashTable() {
 //
 RC PF_HashTable::Find(int fd, PageNum pageNum, int &slot) {
     int bucket = Hash(fd, pageNum);
-    if (bucket < 0)
-        return (PF_HASHNOTFOUND);
-    for (PF_HashEntry *entry = hashTable[bucket];
-         entry != nullptr;
-         entry = entry->next) {
-        if (entry->fd == fd && entry->pageNum == pageNum) {
-            slot = entry->slot;
-            return (0);
+    PF_HashKey key{fd, pageNum};
+    for (const auto &entry : hashTable[bucket]) {
+        if (entry.first == key) {
+            slot = entry.second;
+            return 0;
         }
     }
-    return (PF_HASHNOTFOUND);
+    return PF_HASHNOTFOUND;
 }
 
 
@@ -74,24 +52,16 @@ RC PF_HashTable::Find(int fd, PageNum pageNum, int &slot) {
 //
 RC PF_HashTable::Insert(int fd, PageNum pageNum, int slot) {
     int bucket = Hash(fd, pageNum);
-    PF_HashEntry *entry;
-    for (entry = hashTable[bucket];
-         entry != nullptr;
-         entry = entry->next) {
-        if (entry->fd == fd && entry->pageNum == pageNum)
-            return (PF_HASHPAGEEXIST);
+    PF_HashKey key{fd, pageNum};
+    // 检查是否已存在
+    for (const auto &entry : hashTable[bucket]) {
+        if (entry.first == key) {
+            return PF_HASHPAGEEXIST;
+        }
     }
-    if ((entry = new PF_HashEntry) == nullptr) //这种情况都要考虑到吗……
-        return (PF_NOMEM);
-    entry->fd = fd;
-    entry->pageNum = pageNum;
-    entry->slot = slot;
-    entry->next = hashTable[bucket];
-    entry->prev = nullptr;
-    if (hashTable[bucket] != nullptr)
-        hashTable[bucket]->prev = entry;
-    hashTable[bucket] = entry;
-    return (0);
+    // 插入到链表头部
+    hashTable[bucket].emplace_front(key, slot);
+    return 0;
 }
 
 //
@@ -104,23 +74,12 @@ RC PF_HashTable::Insert(int fd, PageNum pageNum, int slot) {
 //
 RC PF_HashTable::Delete(int fd, PageNum pageNum) {
     int bucket = Hash(fd, pageNum);
-    PF_HashEntry *entry;
-    for (entry = hashTable[bucket];
-         entry != nullptr;
-         entry = entry->next) {
-        if (entry->fd == fd && entry->pageNum == pageNum)
-            break;
-    }
-    if (entry == nullptr)
-        return (PF_HASHNOTFOUND);
-    if (entry == hashTable[bucket])
-        hashTable[bucket] = entry->next;
-    if (entry->prev != nullptr)
-        entry->prev->next = entry->next;
-    if (entry->next != nullptr)
-        entry->next->prev = entry->prev;
-    delete entry;
-    return (0);
+    PF_HashKey key{fd, pageNum};
+    hashTable[bucket].remove_if([&key](const auto &entry) {
+        return entry.first == key;
+    });
+    return 0;
 }
+
 
 

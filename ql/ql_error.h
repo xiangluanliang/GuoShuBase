@@ -31,6 +31,7 @@ void QL_PrintError(RC rc);
 #define QL_JOINKEYTYPEMISMATCH (START_QL_ERR - 6)
 #define QL_BADOPEN         (START_QL_ERR - 7)
 #define QL_EOF             (START_QL_ERR - 8)
+#define QL_INVALIDQUERY    (START_QL_ERR - 9)
 
 #define QL_LASTERROR QL_EOF
 

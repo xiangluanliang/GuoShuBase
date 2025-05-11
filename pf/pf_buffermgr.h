@@ -11,25 +11,27 @@
 #ifndef PF_BUFFERMGR_H
 #define PF_BUFFERMGR_H
 
+#include <list>
+#include <memory>
 #include "pf_internal.h"
 #include "pf_hashtable.h"
 
 #define INVALID_SLOT  (-1)
 
 struct PF_BufPageDesc {
-    char *pData;
+    std::unique_ptr<char[]> pData;  // 自动管理内存
     int next;
     int prev;
-    int bDirty;
-    short int pinCount;
+    bool bDirty;
+    short pinCount;
     PageNum pageNum;
     int fd;
 };
 
 class PF_BufferMgr {
 public:
-    PF_BufferMgr(int numPages);
-    ~PF_BufferMgr();
+    PF_BufferMgr(int _numPages);
+    ~PF_BufferMgr()=default;
 
     RC GetPage(int fd, PageNum pageNum, char **ppBuffer, int bMultiplePins = true);
     RC AllocatePage(int fd, PageNum pageNum, char **ppBuffer);
@@ -53,7 +55,7 @@ private:
     RC WritePage(int fd, PageNum pageNum, char *source);
     RC InitPageDesc(int fd, PageNum pageNum, int slot);
 
-    PF_BufPageDesc *bufTable;
+    std::unique_ptr<PF_BufPageDesc[]> bufTable;
     PF_HashTable hashTable;
     int numPages;
     int pageSize;
@@ -62,4 +64,4 @@ private:
     int free;
 };
 
-#endif //GUOSHUBASE_PF_BUFFERMGR_H
+#endif //PF_BUFFERMGR_H

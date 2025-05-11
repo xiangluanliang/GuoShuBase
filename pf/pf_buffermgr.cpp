@@ -8,16 +8,14 @@
 #include <cstdio>
 #include <unistd.h>
 #include <iostream>
+#include <cstring>
 #include "pf_buffermgr.h"
 
 using namespace std;
 
-// The switch PF_STATS indicates that the user wishes to have statistics
-// tracked for the PF layer
+// 编译的时候开统计执行
 #ifdef PF_STATS
-#include "../utils/statistics.h"   // For StatisticsMgr interface
-
-// Global variable for the statistics manager
+#include "../utils/statistics.h"
 StatisticsMgr *pStatisticsMgr = new StatisticsMgr();;
 #endif
 
@@ -67,30 +65,20 @@ void WriteLog(const char *psMessage)
 }
 #endif
 
-#include <unistd.h>
-#include <cstdio>
-#include <iostream>
-#include <cstring>
-#include "pf_buffermgr.h"
-using namespace std;
-PF_BufferMgr::PF_BufferMgr(int _numPages) : hashTable(PF_HASH_TBL_SIZE) {
-    this->numPages = _numPages;
-    pageSize = PF_PAGE_SIZE + sizeof(PF_PageHdr);
-    bufTable = new PF_BufPageDesc[numPages];
+PF_BufferMgr::PF_BufferMgr(int _numPages)
+    : hashTable(PF_HASH_TBL_SIZE),
+      numPages(_numPages),
+      pageSize(PF_PAGE_SIZE + sizeof(PF_PageHdr)),
+      bufTable(std::make_unique<PF_BufPageDesc[]>(numPages)){
     for (int i = 0; i < numPages; i++) {
-        bufTable[i].pData = new char[pageSize];
-        memset(bufTable[i].pData, 0, pageSize);
+        bufTable[i].pData = std::make_unique<char[]>(pageSize);
+        memset(bufTable[i].pData.get(), 0, pageSize);
         bufTable[i].prev = i - 1;
         bufTable[i].next = i + 1;
     }
     bufTable[0].prev = bufTable[numPages - 1].next = INVALID_SLOT;
     free = 0;
     first = last = INVALID_SLOT;
-}
-PF_BufferMgr::~PF_BufferMgr() {
-    for (int i = 0; i < numPages; i++)
-        delete[] bufTable[i].pData;
-    delete[] bufTable;
 }
 
 //
@@ -128,7 +116,7 @@ RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
     // Search for page in buffer
     if ((rc = hashTable.Find(fd, pageNum, slot)) &&
         (rc != PF_HASHNOTFOUND))
-        return (rc);                // unexpected error
+        return rc;
 
     // If page not in buffer...
     if (rc == PF_HASHNOTFOUND) {
@@ -144,7 +132,7 @@ RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
 
         // read the page, insert it into the hash table,
         // and initialize the page description entry
-        if ((rc = ReadPage(fd, pageNum, bufTable[slot].pData)) ||
+        if ((rc = ReadPage(fd, pageNum, bufTable[slot].pData.get())) ||
             (rc = hashTable.Insert(fd, pageNum, slot)) ||
             (rc = InitPageDesc(fd, pageNum, slot))) {
 
@@ -182,7 +170,7 @@ RC PF_BufferMgr::GetPage(int fd, PageNum pageNum, char **ppBuffer,
     }
 
     // Point ppBuffer to page
-    *ppBuffer = bufTable[slot].pData;
+    *ppBuffer = bufTable[slot].pData.get();
 
     // Return ok
     return (0);
@@ -211,7 +199,7 @@ RC PF_BufferMgr::AllocatePage(int fd, PageNum pageNum, char **ppBuffer) {
 
     // TODO 这种写法其实比较危险，这里的修改和PF_BufferMgr::UnpinPage相关，具体见文档
     if (!(rc = hashTable.Find(fd, pageNum, slot))) {
-        *ppBuffer = bufTable[slot].pData;
+        *ppBuffer = bufTable[slot].pData.get();
 #ifdef PF_LOG
         sprintf(psMessage, "Page (%d,%d) already in buffer (slot %d).\n", fd, pageNum, slot);
         WriteLog(psMessage);
@@ -238,7 +226,7 @@ RC PF_BufferMgr::AllocatePage(int fd, PageNum pageNum, char **ppBuffer) {
     WriteLog("Successfully allocated page.\n");
 #endif
 
-    *ppBuffer = bufTable[slot].pData;
+    *ppBuffer = bufTable[slot].pData.get();
 
     return (0);
 }
@@ -378,7 +366,7 @@ RC PF_BufferMgr::FlushPages(int fd) {
                 sprintf(psMessage, "Page (%d) is dirty\n", bufTable[slot].pageNum);
                 WriteLog(psMessage);
 #endif
-                if ((rc = WritePage(fd, bufTable[slot].pageNum, bufTable[slot].pData)))
+                if ((rc = WritePage(fd, bufTable[slot].pageNum, bufTable[slot].pData.get())))
                     return (rc);
                 bufTable[slot].bDirty = FALSE;
             }
@@ -442,7 +430,7 @@ RC PF_BufferMgr::ForcePages(int fd, PageNum pageNum)
                 sprintf (psMessage, "Page (%d) is dirty\n",bufTable[slot].pageNum);
                 WriteLog(psMessage);
 #endif
-                if ((rc = WritePage(fd, bufTable[slot].pageNum, bufTable[slot].pData)))
+                if ((rc = WritePage(fd, bufTable[slot].pageNum, bufTable[slot].pData.get())))
                     return (rc);
                 bufTable[slot].bDirty = FALSE;
             }
@@ -538,83 +526,23 @@ RC PF_BufferMgr::ClearBuffer()
 //
 RC PF_BufferMgr::ResizeBuffer(int iNewSize)
 {
-    int i;
-    RC rc;
-
-    // First try and clear out the old buffer!
     ClearBuffer();
 
-    // Allocate memory for a new buffer table
-    PF_BufPageDesc *pNewBufTable = new PF_BufPageDesc[iNewSize];
-
-    // Initialize the new buffer table and allocate memory for buffer
-    // pages.  Initially, the free list contains all pages
-    for (i = 0; i < iNewSize; i++) {
-        if ((pNewBufTable[i].pData = new char[pageSize]) == NULL) {
-            cerr << "Not enough memory for buffer\n";
-            exit(1);
-        }
-
-        memset ((void *)pNewBufTable[i].pData, 0, pageSize);
-
+    auto pNewBufTable = std::make_unique<PF_BufPageDesc[]>(iNewSize);
+    for (int i = 0; i < iNewSize; i++) {
+        pNewBufTable[i].pData = std::make_unique<char[]>(pageSize); // 自动分配
+        memset(pNewBufTable[i].pData.get(), 0, pageSize);           // 初始化
         pNewBufTable[i].prev = i - 1;
         pNewBufTable[i].next = i + 1;
     }
-    pNewBufTable[0].prev = pNewBufTable[iNewSize - 1].next = INVALID_SLOT;
+    pNewBufTable[0].prev = pNewBufTable[iNewSize-1].next = INVALID_SLOT;
 
-    // Now we must remember the old first and last slots and (of course)
-    // the buffer table itself.  Then we use insert methods to insert
-    // each of the entries into the new buffertable
-    int oldFirst = first;
-    PF_BufPageDesc *pOldBufTable = bufTable;
+    auto pOldBufTable = std::move(bufTable);  // 原bufTable所有权转移
+    bufTable = std::move(pNewBufTable);       // 新缓冲区接管
 
-    // Setup the new number of pages,  first, last and free
     numPages = iNewSize;
     first = last = INVALID_SLOT;
     free = 0;
-
-    // Setup the new buffer table
-    bufTable = pNewBufTable;
-
-    // We must first remove from the hashtable any possible entries
-    int slot, next, newSlot;
-    slot = oldFirst;
-    while (slot != INVALID_SLOT) {
-        next = pOldBufTable[slot].next;
-
-        // Must remove the entry from the hashtable from the
-        if ((rc=hashTable.Delete(pOldBufTable[slot].fd, pOldBufTable[slot].pageNum)))
-            return (rc);
-        slot = next;
-    }
-
-    // Now we traverse through the old buffer table and copy any old
-    // entries into the new one
-    slot = oldFirst;
-    while (slot != INVALID_SLOT) {
-
-        next = pOldBufTable[slot].next;
-        // Allocate a new slot for the old page
-        if ((rc = InternalAlloc(newSlot)))
-            return (rc);
-
-        // Insert the page into the hash table,
-        // and initialize the page description entry
-        if ((rc = hashTable.Insert(pOldBufTable[slot].fd,
-                                   pOldBufTable[slot].pageNum, newSlot)) ||
-            (rc = InitPageDesc(pOldBufTable[slot].fd,
-                               pOldBufTable[slot].pageNum, newSlot)))
-            return (rc);
-
-        // Put the slot back on the free list before returning the error
-        Unlink(newSlot);
-        InsertFree(newSlot);
-
-        slot = next;
-    }
-
-    // Finally, delete the old buffer table
-    delete [] pOldBufTable;
 
     return 0;
 }
@@ -734,7 +662,7 @@ RC PF_BufferMgr::InternalAlloc(int &slot)
         // Write out the page if it is dirty
         if (bufTable[slot].bDirty) {
             if ((rc = WritePage(bufTable[slot].fd, bufTable[slot].pageNum,
-                                bufTable[slot].pData)))
+                                bufTable[slot].pData.get())))
                 return (rc);
 
             bufTable[slot].bDirty = FALSE;
@@ -889,7 +817,7 @@ RC PF_BufferMgr::AllocateBlock(char *&buffer)
         return rc;
 
     // Create artificial page number (just needs to be unique for hash table)
-    PageNum pageNum = reinterpret_cast<intptr_t>(bufTable[slot].pData);
+    PageNum pageNum = reinterpret_cast<intptr_t>(bufTable[slot].pData.get());
 
     // Insert the page into the hash table, and initialize the page description entry
     if ((rc = hashTable.Insert(MEMORY_FD, pageNum, slot) != OK_RC) ||
@@ -901,7 +829,7 @@ RC PF_BufferMgr::AllocateBlock(char *&buffer)
     }
 
     // Return pointer to buffer
-    buffer = bufTable[slot].pData;
+    buffer = bufTable[slot].pData.get();
 
     // Return success code
     return OK_RC;
