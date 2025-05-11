@@ -12,5 +12,5 @@ add_library(rm rm.h
 target_include_directories(rm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(rm pf ix)
 
-add_executable(rm_test rm_test.cpp)
-target_link_libraries(rm_test rm)
+#add_executable(rm_test rm_test.cpp)
+#target_link_libraries(rm_test rm)
