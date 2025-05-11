@@ -113,7 +113,10 @@ RC PF_Manager::OpenFile(const char *fileName, PF_FileHandle &fileHandle)
             O_BINARY |  // Windows平台需要二进制模式
 #endif
                                   O_RDWR)) < 0)  // 读写模式
+    {
+        perror("open() failed");
         return (PF_UNIX);
+    }
 
     // 读取文件头
     {

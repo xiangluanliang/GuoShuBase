@@ -14,7 +14,7 @@
 #include <cstdlib>
 
 #include "../guoshubase.h"
-#include "../pf/pf.h"
+#include "pf.h"
 #include "rm.h"
 
 using namespace std;

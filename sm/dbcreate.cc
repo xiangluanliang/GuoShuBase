@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include "rm.h"
 #include "sm.h"
+#include "ix.h"
 #include "../guoshubase.h"
 #include "catalog.h"
 
@@ -37,10 +38,10 @@ int main(int argc, char *argv[])
     cerr << "Usage: " << argv[0] << " <dbname> \n";
     exit(1);
   }
-  
+
     // The database name is the second argument
   string dbname(argv[1]);
-  
+
   // Create a subdirectory for the database
   stringstream command;
   command << "mkdir " << dbname;
@@ -54,24 +55,24 @@ int main(int argc, char *argv[])
         cerr << argv[0] << " chdir error to " << dbname << "\n";
         exit(1);
   }
-  
+
   // Create the system catalogs...
   PF_Manager pfm;
   RM_Manager rmm(pfm);
   RM_FileHandle relfh, attrfh;
 
   if(
-    (rc = rmm.CreateFile("relcat", DataRelInfo::size())) 
+    (rc = rmm.CreateFile("relcat", DataRelInfo::size()))
     || (rc =  rmm.OpenFile("relcat", relfh))
-    ) 
+    )
     PrintErrorExit(rc);
-  
+
   if(
-    (rc = rmm.CreateFile("attrcat", DataAttrInfo::size())) 
+    (rc = rmm.CreateFile("attrcat", DataAttrInfo::size()))
     || (rc =  rmm.OpenFile("attrcat", attrfh))
     )
     PrintErrorExit(rc);
-  
+
   DataRelInfo relcat_rel;
   strcpy(relcat_rel.relName, "relcat");
   relcat_rel.attrCount = DataRelInfo::members();
@@ -86,12 +87,12 @@ int main(int argc, char *argv[])
   attrcat_rel.recordSize = DataAttrInfo::size();
   attrcat_rel.numPages = 1; // initially
   attrcat_rel.numRecords = DataAttrInfo::members() + DataRelInfo::members();
-  
+
   RID rid;
   if ((rc = relfh.InsertRec((char*) &relcat_rel, rid)) < 0
       ||   (rc = relfh.InsertRec((char*) &attrcat_rel, rid)) < 0
     )
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
   // relcat attrs
   DataAttrInfo a;
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
   a.attrLength = MAXNAME+1;
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
   strcpy(a.relName, "relcat");
   strcpy(a.attrName, "recordSize");
@@ -111,7 +112,7 @@ int main(int argc, char *argv[])
   a.attrLength = sizeof(int);
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
   strcpy(a.relName, "relcat");
   strcpy(a.attrName, "attrCount");
@@ -129,7 +130,7 @@ int main(int argc, char *argv[])
   a.attrLength = sizeof(int);
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
   strcpy(a.relName, "relcat");
   strcpy(a.attrName, "numRecords");
@@ -138,7 +139,7 @@ int main(int argc, char *argv[])
   a.attrLength = sizeof(int);
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
 
   // attrcat attrs
@@ -149,7 +150,7 @@ int main(int argc, char *argv[])
   a.attrLength = MAXNAME+1;
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
   strcpy(a.relName, "attrcat");
   strcpy(a.attrName, "attrName");
@@ -167,7 +168,7 @@ int main(int argc, char *argv[])
   a.attrLength = sizeof(int);
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
   strcpy(a.relName, "attrcat");
   strcpy(a.attrName, "attrType");
@@ -176,7 +177,7 @@ int main(int argc, char *argv[])
   a.attrLength = sizeof(AttrType);
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
   strcpy(a.relName, "attrcat");
   strcpy(a.attrName, "attrLength");
@@ -185,7 +186,7 @@ int main(int argc, char *argv[])
   a.attrLength = sizeof(int);
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
+    PrintErrorExit(rc);
 
   strcpy(a.relName, "attrcat");
   strcpy(a.attrName, "indexNo");
@@ -194,8 +195,8 @@ int main(int argc, char *argv[])
   a.attrLength = sizeof(int);
   a.indexNo = -1;
   if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
-    PrintErrorExit(rc);  
-    
+    PrintErrorExit(rc);
+
   strcpy(a.relName, "attrcat");
   strcpy(a.attrName, "func");
   a.offset = offsetof(DataAttrInfo, func);
@@ -205,11 +206,49 @@ int main(int argc, char *argv[])
        if ((rc = attrfh.InsertRec((char*) &a, rid)) < 0)
     PrintErrorExit(rc);
 
+
+   AttrInfo attrs[3];
+
+// 属性 1: id
+    attrs[0].attrName = new char[strlen("id") + 1];
+    strcpy(attrs[0].attrName, "id");
+    attrs[0].attrType = INT;
+    attrs[0].attrLength = sizeof(int);
+
+// 属性 2: name
+    attrs[1].attrName = new char[strlen("name") + 1];
+    strcpy(attrs[1].attrName, "name");
+    attrs[1].attrType = STRING;
+    attrs[1].attrLength = 20;  // 字符串长度（可变）
+
+    // 属性 3: age
+    attrs[2].attrName = new char[strlen("age") + 1];
+    strcpy(attrs[2].attrName, "age");
+    attrs[2].attrType = INT;
+    attrs[2].attrLength = sizeof(int);
+
+    IX_Manager ixm(pfm);
+    SM_Manager smm(ixm,rmm);
+
+    RC rc1;
+    if ((rc1 = smm.OpenDb("."))||
+    (rc1 = smm.CreateTable("STUDENT", 3, attrs)))
+        PrintErrorExit(rc1);
+
+    if(rc1 = smm.Print("STUDENT"))
+        PrintErrorExit(rc1);
+
+    for (int i = 0; i < 3; ++i) {
+        delete[] attrs[i].attrName;
+    }
+//    if(rc1 = smm.DropTable("student"))
+//        PrintErrorExit(rc1);
+
   if ((rc =  rmm.CloseFile(attrfh)) < 0
     || (rc =  rmm.CloseFile(relfh)) < 0
-    )
+    || (rc = smm.CloseDb()))
     PrintErrorExit(rc);
-  
+
   return(0);
 }
 

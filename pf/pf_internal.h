@@ -29,7 +29,6 @@ const int PF_HASH_TBL_SIZE = 20;   // Size of hash table
 #define SEEK_SET              0
 #endif
 
-// PF_PageHdr: Header structure for pages
 struct PF_PageHdr {
     int nextFree;       // 可以是如下值:
     //  - 后续空闲页面数
@@ -39,7 +38,6 @@ struct PF_PageHdr {
 
 // 调整文件头使之与页边界对齐
 // 如果不太懂，去看看pf.h 中对PF_PAGE_SIZE的定义原文，那里提到了PF_PageHdr的事
-// 不过我也不太明白一加一减的作用，为啥不直接都4k，方便扩展吗？
 const int PF_FILE_HDR_SIZE = PF_PAGE_SIZE + sizeof(PF_PageHdr);
 
-#endif //GUOSHUBASE_PF_INTERNAL_H
+#endif //PF_INTERNAL_H

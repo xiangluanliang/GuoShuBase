@@ -1,0 +1,192 @@
+//
+// @Author: 杨皓然 23301142
+// @E-amil: 23301142@bjtu.edu.cn
+// @CreateTime: 2025/5/10 21:37
+// @Project: GuoShuBase
+//
+//
+
+#include "tokenizer.h"
+#include <sstream>
+#include <iostream>
+
+static std::unordered_map<std::string, TokenType> keywords = {
+        {"SELECT", TokenType::SELECT},
+        {"INSERT", TokenType::INSERT},
+        {"DELETE", TokenType::DELETE},
+        {"UPDATE", TokenType::UPDATE},
+        {"FROM",   TokenType::FROM},
+        {"WHERE",  TokenType::WHERE},
+        {"INTO",   TokenType::INTO},
+        {"VALUES", TokenType::VALUES},
+        {"AND",    TokenType::AND},
+        {"OR",     TokenType::OR},
+        {"GROUP",  TokenType::GROUP},
+        {"BY",     TokenType::BY},
+        {"ORDER",  TokenType::ORDER},
+        {"HAVING", TokenType::HAVING},
+        {"SET",    TokenType::SET}
+};
+
+std::string TokenTypeToString(TokenType type) {
+    switch (type) {
+        case TokenType::SELECT:
+            return "SELECT";
+        case TokenType::INSERT:
+            return "INSERT";
+        case TokenType::DELETE:
+            return "DELETE";
+        case TokenType::UPDATE:
+            return "UPDATE";
+        case TokenType::FROM:
+            return "FROM";
+        case TokenType::WHERE:
+            return "WHERE";
+        case TokenType::INTO:
+            return "INTO";
+        case TokenType::VALUES:
+            return "VALUES";
+        case TokenType::AND:
+            return "AND";
+        case TokenType::OR:
+            return "OR";
+        case TokenType::STAR:
+            return "*";
+        case TokenType::COMMA:
+            return ",";
+        case TokenType::SEMICOLON:
+            return ";";
+        case TokenType::EQ:
+            return "=";
+        case TokenType::NE:
+            return "<>";
+        case TokenType::LT:
+            return "<";
+        case TokenType::GT:
+            return ">";
+        case TokenType::LE:
+            return "<=";
+        case TokenType::GE:
+            return ">=";
+        case TokenType::LPAREN:
+            return "(";
+        case TokenType::RPAREN:
+            return ")";
+        case TokenType::IDENTIFIER:
+            return "IDENTIFIER";
+        case TokenType::STRING_LITERAL:
+            return "STRING";
+        case TokenType::INT_LITERAL:
+            return "INT";
+        case TokenType::GROUP:
+            return "GROUP";
+        case TokenType::BY:
+            return "BY";
+        case TokenType::ORDER:
+            return "ORDER";
+        case TokenType::HAVING:
+            return "HAVING";
+        case TokenType::SET:
+            return "SET";
+        case TokenType::END:
+            return "END";
+        default:
+            return "INVALID";
+    }
+}
+
+std::vector<Token> Tokenize(const std::string &sql) {
+    std::vector<Token> tokens;
+    size_t i = 0;
+    size_t len = sql.length();
+
+    auto skipWhitespace = [&]() {
+        while (i < len && isspace(sql[i])) i++;
+    };
+
+    skipWhitespace();
+    while (i < len) {
+        if (isalpha(sql[i]) || sql[i] == '_') {
+            std::string word;
+            while (i < len && (isalnum(sql[i]) || sql[i] == '_')) {
+                word += toupper(sql[i]);
+                i++;
+            }
+            if (keywords.count(word)) {
+                tokens.push_back({keywords[word], word});
+            } else {
+                tokens.push_back({TokenType::IDENTIFIER, word});
+            }
+        } else if (isdigit(sql[i])) {
+            std::string number;
+            while (i < len && isdigit(sql[i])) {
+                number += sql[i++];
+            }
+            tokens.push_back({TokenType::INT_LITERAL, number});
+        } else if (sql[i] == '\'') {
+            std::string literal;
+            i++; // skip '
+            while (i < len && sql[i] != '\'') {
+                literal += sql[i++];
+            }
+            i++; // skip closing '
+            tokens.push_back({TokenType::STRING_LITERAL, literal});
+        } else {
+            switch (sql[i]) {
+                case '*':
+                    tokens.push_back({TokenType::STAR, "*"});
+                    i++;
+                    break;
+                case ',':
+                    tokens.push_back({TokenType::COMMA, ","});
+                    i++;
+                    break;
+                case ';':
+                    tokens.push_back({TokenType::SEMICOLON, ";"});
+                    i++;
+                    break;
+                case '=':
+                    tokens.push_back({TokenType::EQ, "="});
+                    i++;
+                    break;
+                case '<':
+                    if (i + 1 < len && sql[i + 1] == '=') {
+                        tokens.push_back({TokenType::LE, "<="});
+                        i += 2;
+                    } else if (i + 1 < len && sql[i + 1] == '>') {
+                        tokens.push_back({TokenType::NE, "<>"});
+                        i += 2;
+                    } else {
+                        tokens.push_back({TokenType::LT, "<"});
+                        i++;
+                    }
+                    break;
+                case '>':
+                    if (i + 1 < len && sql[i + 1] == '=') {
+                        tokens.push_back({TokenType::GE, ">="});
+                        i += 2;
+                    } else {
+                        tokens.push_back({TokenType::GT, ">"});
+                        i++;
+                    }
+                    break;
+                case '(':
+                    tokens.push_back({TokenType::LPAREN, "("});
+                    i++;
+                    break;
+                case ')':
+                    tokens.push_back({TokenType::RPAREN, ")"});
+                    i++;
+                    break;
+                default:
+                    std::cerr << "Unknown token: " << sql[i] << "\n";
+                    tokens.push_back({TokenType::INVALID, std::string(1, sql[i])});
+                    i++;
+            }
+        }
+        skipWhitespace();
+    }
+
+    tokens.push_back({TokenType::END, ""});
+    return tokens;
+}

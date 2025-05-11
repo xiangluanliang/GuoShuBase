@@ -683,6 +683,7 @@ RC SM_Manager::LoadRecord(const char *relName,
 
 }
 
+// 调用这个函数会自动添加一行，并给所有整数型的列赋值0，原因未知，无比要先不要调用
 RC SM_Manager::Load(const char *relName,
                     const char *fileName)
 {

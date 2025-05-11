@@ -1,8 +1,7 @@
-
 #include <iostream>
 #include <cstdio>
 #include <cstring>
-#include <unistd.h>
+#include <string>
 #include "../guoshubase.h"
 #include "rm.h"
 #include "sm.h"
@@ -16,35 +15,39 @@ static void PrintErrorExit(RC rc) {
     exit(rc);
 }
 
-//
-// main
-//
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
     RC rc;
 
-    // Look for 2 arguments.  The first is always the name of the program
-    // that was executed, and the second should be the name of the
-    // database.
+    // 数据库名参数检查
     if (argc != 2) {
         cerr << "Usage: " << argv[0] << " dbname\n";
-        exit(1);
+        return 1;
     }
-    char *dbname = argv[1];
+    char* dbname = argv[1];
 
-    // initialize RedBase components
+    // 初始化RedBase组件
     PF_Manager pfm;
     RM_Manager rmm(pfm);
     IX_Manager ixm(pfm);
     SM_Manager smm(ixm, rmm);
     QL_Manager qlm(smm, ixm, rmm);
-    // open the database
+
+    // 打开数据库
     if ((rc = smm.OpenDb(dbname)))
         PrintErrorExit(rc);
-    // call the parser
-    RC parseRC = RBparse(pfm, smm, qlm);
 
-    // close the database
+    if(//(rc = smm.Load("student","student"))||
+            (rc = smm.Print("STUDENT")))
+        PrintErrorExit(rc);
+    // 调用解析器主循环 GBparse(pfm, smm, qlm);
+    AggRelAttr selAttrs = {
+            NO_F,"STUDENT","id"
+    };
+
+    RC parseRC;
+//    = qlm.Select(1, selAttrs, 1, relations,
+//                      nConditions, conditions, order, orderAttr, group, groupAttr);
+    // 关闭数据库
     if ((rc = smm.CloseDb()))
         PrintErrorExit(rc);
 
@@ -52,5 +55,5 @@ int main(int argc, char *argv[])
         PrintErrorExit(parseRC);
 
     cout << "Bye.\n";
-    return 0;
+    return parseRC;
 }

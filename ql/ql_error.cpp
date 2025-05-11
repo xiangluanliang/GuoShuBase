@@ -31,6 +31,7 @@ const char *QL_ErrorMsg[] = {
   (char*)"QL_JOINKEYTYPEMISMATCH Type mismatch",
   (char*)"QL_BADOPEN QL Manager is in bad state or not open",
   (char*)"QL_EOF end of input on iterator",
+  (char*)"QL_INVALIDQUERY sql parse error",
 };
 
 //
