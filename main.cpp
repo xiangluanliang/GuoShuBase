@@ -39,7 +39,8 @@ int main(int argc, char* argv[]) {
     if(//(rc = smm.Load("student","student"))||
             (rc = smm.Print("STUDENT")))
         PrintErrorExit(rc);
-    // 调用解析器主循环 GBparse(pfm, smm, qlm);
+    // 调用解析器主循环
+    RC parseRC; //= GBparse(pfm, smm, qlm);
     AggRelAttr ss = {
             NO_F,"STUDENT","id"
     };
@@ -48,7 +49,7 @@ int main(int argc, char* argv[]) {
     Condition cs[] = {};
     RelAttr orderAttr;
     RelAttr groupAttr;
-    RC parseRC
+    parseRC
             = qlm.Select(1, &ss, 1, rs,
                          0, cs,
                          0, orderAttr,
