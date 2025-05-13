@@ -62,7 +62,7 @@ RC ResolveAttrRelName(SM_Manager &smm,
             // 其他错误（不是找不到字段），直接返回
             return rc;
         }
-        // rc == SM_NOSUCHENTRY 继续找下一张表
+        // rc == SM_BADATTR 继续找下一张表
     }
 
     if (!relNameOut) {
@@ -77,17 +77,14 @@ RC ResolveAttrRelName(SM_Manager &smm,
 
 RC GBparseSQL(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm, const char *sql) {
     RC rc;
-    std::vector<Token> tokens;
-    try {
-        tokens = Tokenize(sql);
-    } catch (const std::exception &e) {
-        std::cerr << e.what() << std::endl;
-        return QL_INVALIDQUERY;
-    }
-
+    if(strcmp(sql,"exit") == 0) return EXITSYS;
+    std::vector<Token> tokens = Tokenize(sql);
+//    for (auto t:tokens) {
+//        cout << TokenTypeToString(t.type) << ": " << t.text << endl;
+//    }
     ParsedQuery query;
-    if (!ParseSQL(tokens, query)) {
-        return QL_INVALIDQUERY;
+    if ((rc = ParseSQL(tokens, query))) {
+        return rc;
     }
 
     // 用于释放临时分配的堆内存
@@ -169,7 +166,6 @@ RC GBparseSQL(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm, const char *sql
             );
         }
 
-
         case SQLType::INSERT: {
             const char *relName = query.insertTableName ? query.insertTableName : "dummy";
             int nValues = query.values.size();
@@ -204,9 +200,22 @@ RC GBparseSQL(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm, const char *sql
             );
         }
 
+        case SQLType::CREATE_TABLE: {
+            return smm.CreateTable(
+                    query.createTableName,
+                    query.attrList.size(),
+                    query.attrList.data()
+            );
+        }
+
+        case SQLType::DROP_TABLE:
+            return smm.DropTable(query.dropTableName);
+
         default:
             return QL_INVALIDQUERY;
     }
+
+    return 0;
 }
 
 
@@ -216,9 +225,9 @@ RC GBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm) {
     while (true) {
         cout << PROMPT;
         string input;
-        if (!getline(cin, input)) break;
-
+        if(!getline(cin, input)) break;
         if((rc = GBparseSQL(pfm, smm, qlm, input.c_str()))){
+            if(rc == 42) return rc;
             PrintError(rc);
             continue;
         };

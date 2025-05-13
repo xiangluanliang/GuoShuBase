@@ -55,15 +55,16 @@ int main(int argc, char* argv[]) {
 //                      0, orderAttr,
 //                 false, groupAttr);
 
-    rc = GBparse(pfm, smm, qlm);
-
-    // 关闭数据库
+    parseRC = GBparse(pfm, smm, qlm);
+//     关闭数据库
     if ((rc = smm.CloseDb()))
         PrintErrorExit(rc);
 
+    if(parseRC == 42){
+        cout << "Bye.\n";
+        return parseRC;
+    }
     if(parseRC != 0)
         PrintErrorExit(parseRC);
-
-    cout << "Bye.\n";
     return parseRC;
 }
