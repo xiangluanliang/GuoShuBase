@@ -14,7 +14,13 @@
 #include <vector>
 
 #define PROMPT "\nGUOSHUBASE >> "
-enum class SQLType { SELECT, INSERT, DELETE, UPDATE };
+enum class SQLType {
+    SELECT, INSERT, DELETE, UPDATE,
+    CREATE_TABLE, DROP_TABLE,
+    CREATE_INDEX, DROP_INDEX,
+    HELP, PRINT, LOAD
+};
+
 
 struct ParsedQuery {
     SQLType type;
@@ -46,16 +52,28 @@ struct ParsedQuery {
     Value updateValue;
     RelAttr updateRhsAttr;
 
-    ~ParsedQuery() {
-        // 释放所有动态分配的内存
-        for (char* rel : relations) free(rel);
-        free(insertTableName);
-        for (char* field : insertFields) free(field);
-        free(deleteTableName);
-        free(updateTableName);
-    }
+    // CREATE TABLE
+    char* createTableName = nullptr;
+    std::vector<AttrInfo> attrList;
+
+    // DROP TABLE
+    char* dropTableName = nullptr;
+
+    // CREATE INDEX / DROP INDEX
+    char* indexTableName = nullptr;
+    char* indexAttrName = nullptr;
+
+//  // HELP / PRINT
+//    char* helpTableName = nullptr;
+//    char* printTableName = nullptr;
+//
+//  // LOAD
+//    char* loadTableName = nullptr;
+//    char* loadFileName = nullptr;
+
+    ~ParsedQuery() = default;
 };
 
-bool ParseSQL(const std::vector<Token>& tokens, ParsedQuery& out);
+RC ParseSQL(const std::vector<Token>& tokens, ParsedQuery& out);
 
 #endif // SQLPARSER_H

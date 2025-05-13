@@ -17,7 +17,7 @@
 typedef int RC;
 
 #define OK_RC         0    // OK_RC 返回值永远保证为0
-
+#define EXITSYS       42   // 退出系统
 //错误码 Error Code Ranges
 #define START_PF_ERR  (-1)
 #define END_PF_ERR    (-100)

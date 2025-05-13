@@ -34,6 +34,12 @@ const char *QL_ErrorMsg[] = {
   (char*)"QL_INVALIDQUERY sql parse error",
   (char*)"QL_ATTRNOTFOUND attribute not found",
   (char*)"QL_AMBIGUOUSATTR ambiguous attribute",
+  (char*)"QL_SELECTERR",
+  (char*)"QL_INSERTERR",
+  (char*)"QL_DELETEERR",
+  (char*)"QL_UPDATEERR",
+  (char*)"QL_CREATETABLEERR",
+  (char*)"QL_DROPTABLEERR",
 };
 
 //

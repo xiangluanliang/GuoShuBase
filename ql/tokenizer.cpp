@@ -15,18 +15,22 @@ static std::unordered_map<std::string, TokenType> keywords = {
         {"INSERT", TokenType::INSERT},
         {"DELETE", TokenType::DELETE},
         {"UPDATE", TokenType::UPDATE},
-        {"FROM",   TokenType::FROM},
-        {"WHERE",  TokenType::WHERE},
-        {"INTO",   TokenType::INTO},
+        {"FROM", TokenType::FROM},
+        {"WHERE", TokenType::WHERE},
+        {"INTO", TokenType::INTO},
         {"VALUES", TokenType::VALUES},
-        {"AND",    TokenType::AND},
-        {"OR",     TokenType::OR},
-        {"NOT",     TokenType::NOT},
-        {"GROUP",  TokenType::GROUP},
-        {"BY",     TokenType::BY},
-        {"ORDER",  TokenType::ORDER},
+        {"AND", TokenType::AND},
+        {"OR", TokenType::OR},
+        {"NOT", TokenType::NOT},
+        {"GROUP", TokenType::GROUP},
+        {"BY", TokenType::BY},
+        {"ORDER", TokenType::ORDER},
         {"HAVING", TokenType::HAVING},
-        {"SET",    TokenType::SET}
+        {"SET", TokenType::SET},
+        {"CREATE", TokenType::CREATE},
+        {"DROP", TokenType::DROP},
+        {"INDEX", TokenType::INDEX},
+        {"TABLE", TokenType::TABLE}
 };
 
 std::string TokenTypeToString(TokenType type) {
@@ -47,6 +51,14 @@ std::string TokenTypeToString(TokenType type) {
             return "INTO";
         case TokenType::VALUES:
             return "VALUES";
+        case TokenType::TABLE:
+            return "TABLE";
+        case TokenType::CREATE:
+            return "CREATE";
+        case TokenType::DROP:
+            return "DROP";
+        case TokenType::INDEX:
+            return "INDEX";
         case TokenType::AND:
             return "AND";
         case TokenType::OR:
@@ -117,7 +129,7 @@ std::vector<Token> Tokenize(const std::string &sql) {
 
             // 保留原始 word 供标识符使用
             std::string keywordKey;
-            for (char c : word)
+            for (char c: word)
                 keywordKey += std::toupper(c);
 
             if (keywords.count(keywordKey)) {
@@ -127,10 +139,32 @@ std::vector<Token> Tokenize(const std::string &sql) {
             }
         } else if (isdigit(sql[i])) {
             std::string number;
-            while (i < len && isdigit(sql[i])) {
+            bool isFloat = false;
+            // 整数部分
+            while (i < len && isdigit(sql[i]))
                 number += sql[i++];
+
+            // 小数点部分
+            if (i < len && sql[i] == '.') {
+                isFloat = true;
+                number += sql[i++];  // 加入点
+                // 小数点后至少要有一个数字
+                if (i < len && isdigit(sql[i])) {
+                    while (i < len && isdigit(sql[i])) {
+                        number += sql[i++];
+                    }
+                } else {
+                    // 错误：点后没有数字 → 回退为整数
+                    isFloat = false;
+                    i--; // 回退，把点还回去
+                    number.pop_back();
+                }
             }
-            tokens.push_back({TokenType::INT_LITERAL, number});
+            if (isFloat)
+                tokens.push_back({TokenType::FLOAT_LITERAL, number});
+            else
+                tokens.push_back({TokenType::INT_LITERAL, number});
+
         } else if (sql[i] == '\'') {
             std::string literal;
             i++; // skip '
@@ -142,35 +176,54 @@ std::vector<Token> Tokenize(const std::string &sql) {
         } else {
             switch (sql[i]) {
                 case '*':
-                    tokens.push_back({TokenType::STAR, "*"}); i++; break;
+                    tokens.push_back({TokenType::STAR, "*"});
+                    i++;
+                    break;
                 case '.':
-                    tokens.push_back({TokenType::DOT, "."}); i++; break;
+                    tokens.push_back({TokenType::DOT, "."});
+                    i++;
+                    break;
                 case ',':
-                    tokens.push_back({TokenType::COMMA, ","}); i++; break;
+                    tokens.push_back({TokenType::COMMA, ","});
+                    i++;
+                    break;
                 case ';':
-                    tokens.push_back({TokenType::SEMICOLON, ";"}); i++; break;
+                    tokens.push_back({TokenType::SEMICOLON, ";"});
+                    i++;
+                    break;
                 case '=':
-                    tokens.push_back({TokenType::EQ, "="}); i++; break;
+                    tokens.push_back({TokenType::EQ, "="});
+                    i++;
+                    break;
                 case '<':
                     if (i + 1 < len && sql[i + 1] == '=') {
-                        tokens.push_back({TokenType::LE, "<="}); i += 2;
+                        tokens.push_back({TokenType::LE, "<="});
+                        i += 2;
                     } else if (i + 1 < len && sql[i + 1] == '>') {
-                        tokens.push_back({TokenType::NE, "<>"}); i += 2;
+                        tokens.push_back({TokenType::NE, "<>"});
+                        i += 2;
                     } else {
-                        tokens.push_back({TokenType::LT, "<"}); i++;
+                        tokens.push_back({TokenType::LT, "<"});
+                        i++;
                     }
                     break;
                 case '>':
                     if (i + 1 < len && sql[i + 1] == '=') {
-                        tokens.push_back({TokenType::GE, ">="}); i += 2;
+                        tokens.push_back({TokenType::GE, ">="});
+                        i += 2;
                     } else {
-                        tokens.push_back({TokenType::GT, ">"}); i++;
+                        tokens.push_back({TokenType::GT, ">"});
+                        i++;
                     }
                     break;
                 case '(':
-                    tokens.push_back({TokenType::LPAREN, "("}); i++; break;
+                    tokens.push_back({TokenType::LPAREN, "("});
+                    i++;
+                    break;
                 case ')':
-                    tokens.push_back({TokenType::RPAREN, ")"}); i++; break;
+                    tokens.push_back({TokenType::RPAREN, ")"});
+                    i++;
+                    break;
                 default:
                     std::cerr << "Unknown token: " << sql[i] << "\n";
                     tokens.push_back({TokenType::INVALID, std::string(1, sql[i])});

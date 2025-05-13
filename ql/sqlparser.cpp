@@ -4,52 +4,120 @@
 #include <iostream>
 #include <cstring>
 #include <cstdlib>
+#include "ql_error.h"
 
 class SQLParser {
 public:
     SQLParser(const std::vector<Token> &tokens)
             : tokens(tokens), pos(0) {}
 
-    bool Parse(ParsedQuery &out) {
-        try {
-            if (match(TokenType::SELECT)) {
-                return parseSelect(out);
-            } else if (match(TokenType::INSERT)) {
-                return parseInsert(out);
-            } else if (match(TokenType::DELETE)) {
-                return parseDelete(out);
-            } else if (match(TokenType::UPDATE)) {
-                return parseUpdate(out);
-            }
-            return false;
-        } catch (...) {
-            FreeParsedQuery(out);
-            throw;
+    RC Parse(ParsedQuery &out) {
+        if (match(TokenType::SELECT) == 0) return parseSelect(out);
+        else if (match(TokenType::INSERT) == 0) return parseInsert(out);
+        else if (match(TokenType::DELETE) == 0) return parseDelete(out);
+        else if (match(TokenType::UPDATE) == 0) return parseUpdate(out);
+        else if (match(TokenType::CREATE) == 0) {
+            if (match(TokenType::TABLE) == 0) return parseCreateTable(out);
+//            if (match(TokenType::INDEX) == 0) return parseCreateIndex(out);
+        }
+        else if (match(TokenType::DROP) == 0) {
+            if (match(TokenType::TABLE) == 0) return parseDropTable(out);
+//            if (match(TokenType::INDEX) == 0) return parseDropIndex(out);
+        }
+//        else if (match(TokenType::HELP) == 0) return parseHelp(out);
+//        else if (match(TokenType::PRINT) == 0) return parsePrint(out);
+//        else if (match(TokenType::LOAD) == 0) return parseLoad(out);
+        else {
+            return QL_INVALIDQUERY+1;
         }
     }
 
-    static void FreeParsedQuery(ParsedQuery& q) {
-        // Free SELECT parts
-        for (auto& attr : q.selAttrs) FreeAggRelAttr(attr);
-        for (char* rel : q.relations) free(rel);
-        for (auto& cond : q.conditions) FreeCondition(cond);
-        FreeRelAttr(q.groupAttr);
-        for (auto& attr : q.orderAttrs) FreeRelAttr(attr);
+    static void FreeParsedQuery(ParsedQuery &q) {
+        // SELECT
+        for (auto &attr : q.selAttrs) {
+            if (attr.relName) free(attr.relName);
+            if (attr.attrName) free(attr.attrName);
+        }
 
-        // Free INSERT parts
-        free(q.insertTableName);
-        for (char* field : q.insertFields) free(field);
-        for (auto& val : q.values) FreeValue(val);
+        for (auto rel : q.relations) {
+            if (rel) free(rel);
+        }
 
-        // Free DELETE parts
-        free(q.deleteTableName);
+        for (auto &cond : q.conditions) {
+            if (cond.lhsAttr.relName) free(cond.lhsAttr.relName);
+            if (cond.lhsAttr.attrName) free(cond.lhsAttr.attrName);
+            if (cond.bRhsIsAttr) {
+                if (cond.rhsAttr.relName) free(cond.rhsAttr.relName);
+                if (cond.rhsAttr.attrName) free(cond.rhsAttr.attrName);
+            } else {
+                if (cond.rhsValue.type == STRING) {
+                    free(cond.rhsValue.data);
+                } else if (cond.rhsValue.type == INT) {
+                    delete static_cast<int*>(cond.rhsValue.data);
+                } else if (cond.rhsValue.type == FLOAT) {
+                    delete static_cast<float*>(cond.rhsValue.data);
+                }
+            }
+        }
 
-        // Free UPDATE parts
-        free(q.updateTableName);
-        FreeRelAttr(q.updateAttr);
-        FreeValue(q.updateValue);
-        FreeRelAttr(q.updateRhsAttr);
+        if (q.groupAttr.relName) free(q.groupAttr.relName);
+        if (q.groupAttr.attrName) free(q.groupAttr.attrName);
+
+        for (auto &ra : q.orderAttrs) {
+            if (ra.relName) free(ra.relName);
+            if (ra.attrName) free(ra.attrName);
+        }
+
+        // INSERT
+        if (q.insertTableName) free(q.insertTableName);
+        for (auto f : q.insertFields) {
+            if (f) free(f);
+        }
+        for (auto &v : q.values) {
+            if (v.type == STRING) {
+                free(v.data);
+            } else if (v.type == INT) {
+                delete static_cast<int*>(v.data);
+            } else if (v.type == FLOAT) {
+                delete static_cast<float*>(v.data);
+            }
+        }
+
+        // DELETE
+        if (q.deleteTableName) free(q.deleteTableName);
+
+        // UPDATE
+        if (q.updateTableName) free(q.updateTableName);
+        if (q.updateAttr.relName) free(q.updateAttr.relName);
+        if (q.updateAttr.attrName) free(q.updateAttr.attrName);
+        if (q.updateIsValue) {
+            if (q.updateValue.type == STRING) {
+                free(q.updateValue.data);
+            } else if (q.updateValue.type == INT) {
+                delete static_cast<int*>(q.updateValue.data);
+            } else if (q.updateValue.type == FLOAT) {
+                delete static_cast<float*>(q.updateValue.data);
+            }
+        } else {
+            if (q.updateRhsAttr.relName) free(q.updateRhsAttr.relName);
+            if (q.updateRhsAttr.attrName) free(q.updateRhsAttr.attrName);
+        }
+
+        // CREATE TABLE
+        if (q.createTableName) free(q.createTableName);
+        for (auto &a : q.attrList) {
+            if (a.attrName) free(a.attrName);
+        }
+
+        // DROP TABLE
+        if (q.dropTableName) free(q.dropTableName);
+
+        // INDEX
+        if (q.indexTableName) free(q.indexTableName);
+        if (q.indexAttrName) free(q.indexAttrName);
     }
+
+
 
 private:
     const std::vector<Token> &tokens;
@@ -63,59 +131,59 @@ private:
         return tokens[pos++];
     }
 
-    bool match(TokenType expected) {
+    RC match(TokenType expected) {
         if (peek().type == expected) {
             pos++;
-            return true;
+            return 0;
         }
-        return false;
+        return QL_INVALIDQUERY+2;
     }
 
-    bool parseSelect(ParsedQuery &q) {
+    RC parseSelect(ParsedQuery &q) {
         q.type = SQLType::SELECT;
 
-        if (!parseSelectList(q.selAttrs)) return false;
-        if (!match(TokenType::FROM)) return false;
-        if (!parseTableList(q.relations)) return false;
+        if (!parseSelectList(q.selAttrs)) return QL_SELECTERR;
+        if (match(TokenType::FROM)) return QL_SELECTERR;
+        if (!parseTableList(q.relations)) return QL_SELECTERR;
 
-        if (match(TokenType::WHERE)) {
-            if (!parseConditionList(q.conditions)) return false;
+        if (!match(TokenType::WHERE)) {
+            if (!parseConditionList(q.conditions)) return QL_SELECTERR;
         }
 
-        if (match(TokenType::GROUP)) {
-            if (!match(TokenType::BY)) return false;
-            if (!parseRelAttr(q.groupAttr)) return false;
+        if (!match(TokenType::GROUP)) {
+            if (match(TokenType::BY)) return QL_SELECTERR;
+            if (!parseRelAttr(q.groupAttr)) return QL_SELECTERR;
             q.hasGroupBy = true;
         }
 
-        if (match(TokenType::ORDER)) {
-            if (!match(TokenType::BY)) return false;
+        if (!match(TokenType::ORDER)) {
+            if (match(TokenType::BY)) return QL_SELECTERR;
             do {
                 RelAttr ra;
-                if (!parseRelAttr(ra)) return false;
+                if (!parseRelAttr(ra)) return QL_SELECTERR;
                 q.orderAttrs.push_back(ra);
-            } while (match(TokenType::COMMA));
+            } while (!match(TokenType::COMMA));
             q.hasOrderBy = true;
         }
 
         return match(TokenType::SEMICOLON);
     }
 
-    bool parseInsert(ParsedQuery &q) {
+    RC parseInsert(ParsedQuery &q) {
         q.type = SQLType::INSERT;
 
-        if (!match(TokenType::INTO)) return false;
+        if (match(TokenType::INTO)) return QL_INSERTERR;
         q.insertTableName = AllocCopyString(next().text);
 
-        if (match(TokenType::LPAREN)) {
+        if (!match(TokenType::LPAREN)) {
             do {
                 q.insertFields.push_back(AllocCopyString(next().text));
             } while (match(TokenType::COMMA));
-            if (!match(TokenType::RPAREN)) return false;
+            if (!match(TokenType::RPAREN)) return QL_INSERTERR;
         }
 
-        if (!match(TokenType::VALUES)) return false;
-        if (!match(TokenType::LPAREN)) return false;
+        if (match(TokenType::VALUES)) return QL_INSERTERR;
+        if (match(TokenType::LPAREN)) return QL_INSERTERR;
 
         do {
             Value v;
@@ -127,39 +195,39 @@ private:
                 v.type = STRING;
                 v.data = AllocCopyString(next().text);
             } else {
-                return false;
+                return QL_INSERTERR;
             }
             q.values.push_back(v);
-        } while (match(TokenType::COMMA));
+        } while (!match(TokenType::COMMA));
 
-        return match(TokenType::RPAREN) && match(TokenType::SEMICOLON);
+        return match(TokenType::RPAREN) || match(TokenType::SEMICOLON);
     }
 
-    bool parseDelete(ParsedQuery &q) {
+    RC parseDelete(ParsedQuery &q) {
         q.type = SQLType::DELETE;
 
-        if (!match(TokenType::FROM)) return false;
+        if (match(TokenType::FROM)) return QL_DELETEERR;
         q.deleteTableName = AllocCopyString(next().text);
 
-        if (match(TokenType::WHERE)) {
-            if (!parseConditionList(q.conditions)) return false;
+        if (!match(TokenType::WHERE)) {
+            if (!parseConditionList(q.conditions)) return QL_DELETEERR;
         }
 
         return match(TokenType::SEMICOLON);
     }
 
-    bool parseUpdate(ParsedQuery &q) {
+    RC parseUpdate(ParsedQuery &q) {
         q.type = SQLType::UPDATE;
 
         q.updateTableName = AllocCopyString(next().text);
-        if (!match(TokenType::SET)) return false;
+        if (match(TokenType::SET)) return QL_UPDATEERR;
 
-        if (!parseRelAttr(q.updateAttr)) return false;
-        if (!match(TokenType::EQ)) return false;
+        if (!parseRelAttr(q.updateAttr)) return QL_UPDATEERR;
+        if (match(TokenType::EQ)) return QL_UPDATEERR;
 
         if (peek().type == TokenType::IDENTIFIER) {
             q.updateIsValue = false;
-            if (!parseRelAttr(q.updateRhsAttr)) return false;
+            if (!parseRelAttr(q.updateRhsAttr)) return QL_UPDATEERR;
         } else if (peek().type == TokenType::INT_LITERAL) {
             q.updateIsValue = true;
             q.updateValue.type = INT;
@@ -170,13 +238,58 @@ private:
             q.updateValue.type = STRING;
             q.updateValue.data = AllocCopyString(next().text);
         } else {
-            return false;
+            return QL_UPDATEERR;
         }
 
-        if (match(TokenType::WHERE)) {
-            if (!parseConditionList(q.conditions)) return false;
+        if (!match(TokenType::WHERE)) {
+            if (!parseConditionList(q.conditions)) return QL_UPDATEERR;
         }
 
+        return match(TokenType::SEMICOLON);
+    }
+
+    RC parseCreateTable(ParsedQuery &q) {
+        q.type = SQLType::CREATE_TABLE;
+
+        if (peek().type != TokenType::IDENTIFIER) return QL_CREATETABLEERR;
+        q.createTableName = AllocCopyString(next().text);
+
+        if (match(TokenType::LPAREN)) return QL_CREATETABLEERR;
+
+        do {
+            AttrInfo attr;
+            if (peek().type != TokenType::IDENTIFIER) return QL_CREATETABLEERR;
+            attr.attrName = AllocCopyString(next().text);
+
+            if (peek().type != TokenType::IDENTIFIER) return QL_CREATETABLEERR;
+            std::string typeStr = next().text;
+
+            if (typeStr == "INT") {
+                attr.attrType = INT;
+                attr.attrLength = sizeof(int);
+            } else if (typeStr == "FLOAT") {
+                attr.attrType = FLOAT;
+                attr.attrLength = sizeof(float);
+            } else if (typeStr == "STRING") {
+                if (match(TokenType::LPAREN)) return QL_CREATETABLEERR;
+                if (peek().type != TokenType::INT_LITERAL) return QL_CREATETABLEERR;
+                attr.attrLength = std::stoi(next().text);
+                if (match(TokenType::RPAREN)) return QL_CREATETABLEERR;
+                attr.attrType = STRING;
+            } else {
+                return QL_CREATETABLEERR;
+            }
+
+            q.attrList.push_back(attr);
+        } while (!match(TokenType::COMMA));
+
+        return match(TokenType::RPAREN) || match(TokenType::SEMICOLON);
+    }
+
+    RC parseDropTable(ParsedQuery &q) {
+        q.type = SQLType::DROP_TABLE;
+        if (peek().type != TokenType::IDENTIFIER) return QL_DROPTABLEERR;
+        q.dropTableName = AllocCopyString(next().text);
         return match(TokenType::SEMICOLON);
     }
 
@@ -192,7 +305,7 @@ private:
                  peek().text == "MIN" || peek().text == "MAX")) {
                 // 聚合函数
                 attr.func = strToAggFun(next().text);
-                if (!match(TokenType::LPAREN)) return false;
+                if (match(TokenType::LPAREN)) return false;
                 if (peek().type == TokenType::STAR) {
                     next();
                     attr.attrName = AllocCopyString("*");
@@ -202,7 +315,7 @@ private:
                     attr.relName = ra.relName ? AllocCopyString(ra.relName) : nullptr;
                     attr.attrName = ra.attrName ? AllocCopyString(ra.attrName) : nullptr;
                 }
-                if (!match(TokenType::RPAREN)) return false;
+                if (match(TokenType::RPAREN)) return false;
             } else if (peek().type == TokenType::STAR) {
                 // SELECT *
                 next();
@@ -219,7 +332,7 @@ private:
             }
 
             attrs.push_back(attr);
-        } while (match(TokenType::COMMA));
+        } while (!match(TokenType::COMMA));
 
         return true;
     }
@@ -228,7 +341,7 @@ private:
     bool parseTableList(std::vector<char*> &tables) {
         do {
             tables.push_back(AllocCopyString(next().text));
-        } while (match(TokenType::COMMA));
+        } while (!match(TokenType::COMMA));
         return true;
     }
 
@@ -237,7 +350,7 @@ private:
         if (peek().type != TokenType::IDENTIFIER) return false;
         std::string first = next().text;
 
-        if (match(TokenType::DOT)) {
+        if (!match(TokenType::DOT)) {
             // rel.attr 形式
             if (peek().type != TokenType::IDENTIFIER) return false;
             std::string second = next().text;
@@ -274,6 +387,11 @@ private:
                 cond.rhsValue.type = INT;
                 int* val = new int(std::stoi(next().text));
                 cond.rhsValue.data = val;
+            } else if (peek().type == TokenType::FLOAT_LITERAL) {
+                cond.bRhsIsAttr = 0;
+                cond.rhsValue.type = FLOAT;
+                float* val = new float(std::stof(next().text));
+                cond.rhsValue.data = val;
             } else if (peek().type == TokenType::STRING_LITERAL) {
                 cond.bRhsIsAttr = 0;
                 cond.rhsValue.type = STRING;
@@ -283,7 +401,7 @@ private:
             }
 
             conds.push_back(cond);
-        } while (match(TokenType::AND));
+        } while (!match(TokenType::AND));
 
         return true;
     }
@@ -293,6 +411,8 @@ private:
         if (s == "COUNT") return COUNT_F;
         if (s == "SUM") return SUM_F;
         if (s == "AVG") return AVG_F;
+        if (s == "MAX") return MAX_F;
+        if (s == "MIN") return MIN_F;
         return NO_F;
     }
 
@@ -316,43 +436,14 @@ private:
         return p;
     }
 
-    static void FreeValue(Value& v) {
-        if (v.data) {
-            if (v.type == STRING) free(v.data);
-            else if (v.type == INT) delete (int *) v.data;
-            else if (v.type == FLOAT) delete (float *) v.data;
-            v.data = nullptr;
-        }
-    }
-
-    static void FreeRelAttr(RelAttr& attr) {
-        free(attr.relName);
-        free(attr.attrName);
-        attr.relName = attr.attrName = nullptr;
-    }
-
-    static void FreeAggRelAttr(AggRelAttr& attr) {
-        free(attr.relName);
-        free(attr.attrName);
-        attr.relName = attr.attrName = nullptr;
-    }
-
-    static void FreeCondition(Condition& cond) {
-        FreeRelAttr(cond.lhsAttr);
-        if (cond.bRhsIsAttr) {
-            FreeRelAttr(cond.rhsAttr);
-        } else {
-            FreeValue(cond.rhsValue);
-        }
-    }
-
 };
 
-bool ParseSQL(const std::vector<Token> &tokens, ParsedQuery &out) {
+RC ParseSQL(const std::vector<Token> &tokens, ParsedQuery &out) {
+    RC rc;
     SQLParser parser(tokens);
-    bool success = parser.Parse(out);
-    if (!success) {
+    if ((rc = parser.Parse(out))) {
         SQLParser::FreeParsedQuery(out);
+        return rc;
     }
-    return success;
+    return rc;
 }
