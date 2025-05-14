@@ -55,7 +55,7 @@ private:
     RC WritePage(int fd, PageNum pageNum, char *source);
     RC InitPageDesc(int fd, PageNum pageNum, int slot);
 
-    std::unique_ptr<PF_BufPageDesc[]> bufTable;
+    PF_BufPageDesc* bufTable;    //std::unique_ptr<PF_BufPageDesc[]> bufTable;
     PF_HashTable hashTable;
     int numPages;
     int pageSize;

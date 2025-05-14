@@ -68,8 +68,11 @@ void WriteLog(const char *psMessage)
 PF_BufferMgr::PF_BufferMgr(int _numPages)
     : hashTable(PF_HASH_TBL_SIZE),
       numPages(_numPages),
-      pageSize(PF_PAGE_SIZE + sizeof(PF_PageHdr)),
-      bufTable(std::make_unique<PF_BufPageDesc[]>(numPages)){
+      pageSize(PF_PAGE_SIZE + sizeof(PF_PageHdr))
+      //,
+      //bufTable(std::make_unique<PF_BufPageDesc[]>(numPages))
+      {
+          bufTable = new PF_BufPageDesc[numPages]; //弃用make_unique意外能加快性能，如果没问题就改回结构体数组
     for (int i = 0; i < numPages; i++) {
         bufTable[i].pData = std::make_unique<char[]>(pageSize);
         memset(bufTable[i].pData.get(), 0, pageSize);
@@ -538,7 +541,7 @@ RC PF_BufferMgr::ResizeBuffer(int iNewSize)
     pNewBufTable[0].prev = pNewBufTable[iNewSize-1].next = INVALID_SLOT;
 
     auto pOldBufTable = std::move(bufTable);  // 原bufTable所有权转移
-    bufTable = std::move(pNewBufTable);       // 新缓冲区接管
+    bufTable = new PF_BufPageDesc[numPages];//bufTable = std::move(pNewBufTable);       // 新缓冲区接管
 
     numPages = iNewSize;
     first = last = INVALID_SLOT;
