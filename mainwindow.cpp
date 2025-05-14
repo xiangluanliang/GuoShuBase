@@ -9,6 +9,7 @@
 #include <QTreeView>
 #include <QList>
 #include <QString>
+#include <iostream>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -55,7 +56,11 @@ MainWindow::MainWindow(const QString &folderPath,QWidget *parent)
     ui->treeWidget_dbBrowser->setRootIsDecorated(true);
     QList<QString> filesWithoutExtension = MgetFilesWithoutExtension(folderPath);
     displayListInTreeView(ui->treeWidget_dbBrowser,filesWithoutExtension);
-    dbsname=folderPath;
+    dbpath=folderPath;
+    QFileInfo fileInfo(folderPath);
+    dbname = fileInfo.fileName();
+    std::cout<< dbname.toStdString() <<std::endl;
+    
 
 }
 
@@ -83,17 +88,19 @@ QList<QString> MainWindow::MgetFilesWithoutExtension(const QString &folderPath) 
 void MainWindow::on_DOIT_clicked()
 {
     //TODO将plainTextEdit中的字符转到命令行内并运行，检测到有查询语句时进入新界面并展示查询结果
-
+    ui->shuchu->clear();
+    QStringList qtList;
     QString sqls=ui->plainTextEdit->toPlainText();
     QByteArray ba = sqls.toLatin1();
     char* sqlss=ba.data();
     char sexit[]="exit";
-    if(std::strcmp(sqlss,sexit)){
+    if(std::strcmp(sqlss,sexit) == 0){
         exit(1);
     }else {
+        qtList.append(QString::fromStdString(sqlss));
         ;//std::list sqla;//=GBparsesql(pfm, smm, qlm,sqlss);
     }
-    QStringList qtList;
+
 
 //    for (const std::string &item : sqla) {
 //        qtList.append(QString::fromStdString(item));
@@ -103,9 +110,9 @@ void MainWindow::on_DOIT_clicked()
     QString result = qtList.join("\n");
 
     // 输出到 QPlainTextEdit
-    ui->plainTextEdit->appendPlainText(result);
-    displayListInTreeView(ui->treeWidget_dbBrowser,MgetFilesWithoutExtension(dbsname));
-
+    ui->shuchu->appendPlainText(result);
+    displayListInTreeView(ui->treeWidget_dbBrowser,MgetFilesWithoutExtension(dbpath));
+//
 
 }
 

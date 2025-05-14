@@ -30,7 +30,8 @@ public:
 
     QList<QString> MgetFilesWithoutExtension(const QString &folderPath);
 
-    QString dbsname;
+    QString dbpath;
+    QString dbname;
 
 private slots:
 

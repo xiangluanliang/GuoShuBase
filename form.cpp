@@ -6,6 +6,7 @@
 #include <QInputDialog>
 #include <QDir>
 #include<QWidget>
+#include <iostream>
 
 Form::Form(QWidget *parent)
     : QWidget(parent)
@@ -46,14 +47,14 @@ void Form::on_toolButton_clicked()
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks
         );
 
+
     if (!folderPath.isEmpty()) {
         qDebug() << "Selected folder:" << folderPath;
-        MainWindow m =new MainWindow(folderPath);
-        m.show();
-        setVisible(false);
+        this->setVisible(false);
+        std::cout<< folderPath.toStdString() <<std::endl;
 
-
-
+        MainWindow* m =new MainWindow(folderPath);
+        m->show();
 
     }
 
@@ -80,13 +81,19 @@ void Form::on_toolButton_2_clicked()
             );
 
         if (ok && !folderName.isEmpty()) {
-            QString newFolderPath = parentFolder + QDir::separator() + folderName;
+            QString newFolderPath = parentFolder + "/" + folderName;
+            std::cout<< newFolderPath.toStdString() <<std::endl;
+            
             if (QDir().mkdir(newFolderPath)) {
-                qDebug() << "Folder created:" << newFolderPath;
+                std::cout << "Folder created:" << newFolderPath.toStdString();
+                this->setVisible(false);
+                std::cout<< "success" <<std::endl;
+                
                 // 在这里处理新创建的文件夹路径
-                MainWindow m =new MainWindow(newFolderPath);
-                m.show();
-                setVisible(false);
+                MainWindow* m = new MainWindow(newFolderPath);
+                m->show();
+                std::cout<< "success111" <<std::endl;
+                
             } else {
                 qDebug() << "Failed to create folder!";
             }
