@@ -30,6 +30,7 @@ static std::unordered_map<std::string, TokenType> keywords = {
         {"CREATE", TokenType::CREATE},
         {"DROP", TokenType::DROP},
         {"INDEX", TokenType::INDEX},
+        {"ON", TokenType::ON},
         {"TABLE", TokenType::TABLE}
 };
 

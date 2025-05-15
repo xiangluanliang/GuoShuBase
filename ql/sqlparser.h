@@ -18,7 +18,8 @@ enum class SQLType {
     SELECT, INSERT, DELETE, UPDATE,
     CREATE_TABLE, DROP_TABLE,
     CREATE_INDEX, DROP_INDEX,
-    HELP, PRINT, LOAD
+    HELP, PRINT, LOAD,
+    SHOW_INDEX
 };
 
 
@@ -39,7 +40,6 @@ struct ParsedQuery {
 
     // INSERT
     char* insertTableName = nullptr;
-    std::vector<char*> insertFields;
     std::vector<Value> values;
 
     // DELETE
@@ -62,8 +62,9 @@ struct ParsedQuery {
     // CREATE INDEX / DROP INDEX
     char* indexTableName = nullptr;
     char* indexAttrName = nullptr;
+//    std::vector<char*> indexAttrs;
 
-//  // HELP / PRINT
+    //  // HELP / PRINT
 //    char* helpTableName = nullptr;
 //    char* printTableName = nullptr;
 //

@@ -11,6 +11,8 @@ public:
     SQLParser(const std::vector<Token> &tokens)
             : tokens(tokens), pos(0) {}
 
+
+
     RC Parse(ParsedQuery &out) {
         if (match(TokenType::SELECT) == 0) return parseSelect(out);
         else if (match(TokenType::INSERT) == 0) return parseInsert(out);
@@ -18,12 +20,25 @@ public:
         else if (match(TokenType::UPDATE) == 0) return parseUpdate(out);
         else if (match(TokenType::CREATE) == 0) {
             if (match(TokenType::TABLE) == 0) return parseCreateTable(out);
-//            if (match(TokenType::INDEX) == 0) return parseCreateIndex(out);
+            if (match(TokenType::INDEX) == 0) return parseCreateIndex(out);
         }
         else if (match(TokenType::DROP) == 0) {
             if (match(TokenType::TABLE) == 0) return parseDropTable(out);
-//            if (match(TokenType::INDEX) == 0) return parseDropIndex(out);
+            if (match(TokenType::INDEX) == 0) return parseDropIndex(out);
         }
+//         else if (match(TokenType::SHOW) == 0) {
+//             if (match(TokenType::INDEX) == 0) return parseShowIndex(out);
+//         }
+//        else if (match(TokenType::SHOW) == 0) {
+//            std::vector<char*> attrs;
+//            if (parseShowList(attrs)) {
+//                out.showIndexTableName = AllocCopyString("表名");
+//                out.showIndexAttrs = attrs;
+//                return 0;
+//            } else {
+//                return QL_SHOWINDEXERR;
+//            }
+//        }
 //        else if (match(TokenType::HELP) == 0) return parseHelp(out);
 //        else if (match(TokenType::PRINT) == 0) return parsePrint(out);
 //        else if (match(TokenType::LOAD) == 0) return parseLoad(out);
@@ -70,9 +85,6 @@ public:
 
         // INSERT
         if (q.insertTableName) free(q.insertTableName);
-        for (auto f : q.insertFields) {
-            if (f) free(f);
-        }
         for (auto &v : q.values) {
             if (v.type == STRING) {
                 free(v.data);
@@ -113,8 +125,11 @@ public:
         if (q.dropTableName) free(q.dropTableName);
 
         // INDEX
-        if (q.indexTableName) free(q.indexTableName);
         if (q.indexAttrName) free(q.indexAttrName);
+        if (q.indexTableName) free(q.indexTableName);
+//        for (auto &a : q.indexAttrs) {
+//            if (a) free(a);
+//        }
     }
 
 
@@ -136,7 +151,7 @@ private:
             pos++;
             return 0;
         }
-        return QL_INVALIDQUERY+2;
+        return QL_INVALIDQUERY;
     }
 
     RC parseSelect(ParsedQuery &q) {
@@ -175,14 +190,6 @@ private:
         if (match(TokenType::INTO)) return QL_INSERTERR;
         q.insertTableName = AllocCopyString(next().text);
 
-        if (!match(TokenType::LPAREN)) {
-            do {
-                q.insertFields.push_back(AllocCopyString(next().text));
-            } while (match(TokenType::COMMA));
-            if (!match(TokenType::RPAREN)) return QL_INSERTERR;
-        }
-
-        if (match(TokenType::VALUES)) return QL_INSERTERR;
         if (match(TokenType::LPAREN)) return QL_INSERTERR;
 
         do {
@@ -191,7 +198,11 @@ private:
                 v.type = INT;
                 int* num = new int(std::stoi(next().text));
                 v.data = num;
-            } else if (peek().type == TokenType::STRING_LITERAL) {
+            } else if (peek().type == TokenType::FLOAT_LITERAL) {
+                v.type = FLOAT;
+                float* val = new float(std::stof(next().text));
+                v.data = val;
+            }else if (peek().type == TokenType::STRING_LITERAL) {
                 v.type = STRING;
                 v.data = AllocCopyString(next().text);
             } else {
@@ -233,7 +244,12 @@ private:
             q.updateValue.type = INT;
             int* num = new int(std::stoi(next().text));
             q.updateValue.data = num;
-        } else if (peek().type == TokenType::STRING_LITERAL) {
+        } else if (peek().type == TokenType::FLOAT_LITERAL) {
+            q.updateIsValue = true;
+            q.updateValue.type = FLOAT;
+            float* val = new float(std::stof(next().text));
+            q.updateValue.data = val;
+        }else if (peek().type == TokenType::STRING_LITERAL) {
             q.updateIsValue = true;
             q.updateValue.type = STRING;
             q.updateValue.data = AllocCopyString(next().text);
@@ -292,6 +308,67 @@ private:
         q.dropTableName = AllocCopyString(next().text);
         return match(TokenType::SEMICOLON);
     }
+
+    RC parseCreateIndex(ParsedQuery &q) {
+        q.type = SQLType::CREATE_INDEX;
+
+        // 检查ON关键字
+        if (match(TokenType::ON)) return QL_CREATEINDEXERR;
+
+        // 检查索引表名
+        if (peek().type != TokenType::IDENTIFIER) return QL_CREATEINDEXERR;
+        q.indexTableName = AllocCopyString(next().text);
+
+        // 检查索引名
+        if (peek().type != TokenType::IDENTIFIER) return QL_CREATEINDEXERR;
+        q.indexAttrName = AllocCopyString(next().text);
+
+//        //创建索引的列的列表
+//        if (match(TokenType::LPAREN)) return QL_CREATEINDEXERR;
+//        do {
+//            if (peek().type == TokenType::IDENTIFIER)
+//                q.indexAttrs.push_back(AllocCopyString(next().text));
+//            else return QL_CREATEINDEXERR;
+//        } while (!match(TokenType::COMMA));
+//        if (match(TokenType::RPAREN)) return QL_CREATEINDEXERR;
+
+        // 检查语句结尾分号
+        return match(TokenType::SEMICOLON);
+    };
+
+    RC parseDropIndex(ParsedQuery &q) {
+        q.type = SQLType::DROP_INDEX;
+
+        // 检查ON关键字
+        if (match(TokenType::ON)) return QL_DROPINDEXERR;
+
+        // 检查索引表名
+        if (peek().type != TokenType::IDENTIFIER) return QL_DROPINDEXERR;
+        q.indexTableName = AllocCopyString(next().text);
+
+        // 检查索引列名
+        if (peek().type != TokenType::IDENTIFIER) return QL_DROPINDEXERR;
+        q.indexAttrName = AllocCopyString(next().text);
+
+        // 检查语句结尾分号
+        return match(TokenType::SEMICOLON);
+    }
+
+//    RC parseShowIndex(ParsedQuery &q) {
+//        q.type = SQLType::SHOW_INDEX;
+//
+//        if (match(TokenType::FROM)) {
+//            return QL_SHOWINDEXERR;
+//        }
+//
+//        if (peek().type != TokenType::IDENTIFIER) {
+//            return QL_SHOWINDEXERR;
+//        }
+//        q.indexName = AllocCopyString(next().text);
+//
+//        return match(TokenType::SEMICOLON);
+//    }
+
 
     bool parseSelectList(std::vector<AggRelAttr> &attrs) {
         do {
@@ -442,7 +519,7 @@ RC ParseSQL(const std::vector<Token> &tokens, ParsedQuery &out) {
     RC rc;
     SQLParser parser(tokens);
     if ((rc = parser.Parse(out))) {
-        SQLParser::FreeParsedQuery(out);
+//    SQLParser::FreeParsedQuery(out);
         return rc;
     }
     return rc;

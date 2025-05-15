@@ -211,6 +211,15 @@ RC GBparseSQL(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm, const char *sql
         case SQLType::DROP_TABLE:
             return smm.DropTable(query.dropTableName);
 
+        case SQLType::CREATE_INDEX:
+            return smm.CreateIndex(query.indexTableName,query.indexAttrName);
+
+        case SQLType::DROP_INDEX:
+            return smm.DropIndex(query.indexTableName,query.indexAttrName);
+
+//        case SQLType::SHOW_INDEX:
+//            return smm.DropTable(query.dropTableName);
+
         default:
             return QL_INVALIDQUERY;
     }
