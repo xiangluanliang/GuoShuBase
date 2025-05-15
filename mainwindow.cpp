@@ -13,29 +13,46 @@
 #include "guoshubase_interface.h"
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-{
+        : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
     ui->treeWidget_dbBrowser->setRootIsDecorated(true);
 
 }
 
-MainWindow::~MainWindow()
-{
+
+MainWindow::MainWindow(const QString &folderPath, bool isNew, QWidget *parent)
+        : QMainWindow(parent), ui(new Ui::MainWindow) {
+    ui->setupUi(this);
+    if(isNew){
+        CreateDb(folderPath.toStdString().c_str());
+        CloseDb();
+    }
+
+    ui->treeWidget_dbBrowser->setRootIsDecorated(true);
+    QList<QString> filesWithoutExtension = MgetFilesWithoutExtension(folderPath);
+    displayListInTreeView(ui->treeWidget_dbBrowser, filesWithoutExtension);
+    dbpath = folderPath;
+    QFileInfo fileInfo(folderPath);
+    dbname = fileInfo.fileName();
+    std::cout << dbname.toStdString() << std::endl;
+    int rc = OpenDb(dbpath.toStdString().c_str());
+    if (rc) PrintErrorExit(rc);
+}
+
+MainWindow::~MainWindow() {
     delete ui;
 }
-void MainWindow::displayListInTreeView(QTreeView* treeView, const QList<QString>& stringList)
-{
+
+void MainWindow::displayListInTreeView(QTreeView *treeView, const QList<QString> &stringList) {
     // 1. 创建标准项模型
-    QStandardItemModel* model = new QStandardItemModel(treeView);
+    QStandardItemModel *model = new QStandardItemModel(treeView);
 
     // 2. 设置表头（可选）
     model->setHorizontalHeaderLabels(QStringList() << "表");
 
     // 3. 添加数据到模型
-    for (const QString& str : stringList) {
-        QStandardItem* item = new QStandardItem(str);
+    for (const QString &str: stringList) {
+        QStandardItem *item = new QStandardItem(str);
         model->appendRow(item);
     }
 
@@ -49,26 +66,6 @@ void MainWindow::displayListInTreeView(QTreeView* treeView, const QList<QString>
     treeView->resizeColumnToContents(0);
 }
 
-MainWindow::MainWindow(const QString &folderPath,QWidget *parent)
-    : QMainWindow(parent)
-    ,ui(new Ui::MainWindow)
-{
-    ui->setupUi(this);
-    ui->treeWidget_dbBrowser->setRootIsDecorated(true);
-    QList<QString> filesWithoutExtension = MgetFilesWithoutExtension(folderPath);
-    displayListInTreeView(ui->treeWidget_dbBrowser,filesWithoutExtension);
-    dbpath=folderPath;
-    QFileInfo fileInfo(folderPath);
-    dbname = fileInfo.fileName();
-    std::cout<< dbname.toStdString() <<std::endl;
-    int rc = OpenDb(dbname.toStdString().c_str());
-    if(rc) PrintErrorExit(rc);
-}
-
-
-
-
-
 QList<QString> MainWindow::MgetFilesWithoutExtension(const QString &folderPath) {
     QList<QString> filesWithoutExtension;
     QDir dir(folderPath);
@@ -76,7 +73,7 @@ QList<QString> MainWindow::MgetFilesWithoutExtension(const QString &folderPath) 
     // 获取文件夹中的所有文件（不包括子文件夹）
     QStringList files = dir.entryList(QDir::Files);
 
-    for (const QString &file : files) {
+    for (const QString &file: files) {
         QFileInfo fileInfo(dir, file);
         if (fileInfo.suffix().isEmpty()) {
             // 如果文件无后缀，则添加到列表中
@@ -88,25 +85,22 @@ QList<QString> MainWindow::MgetFilesWithoutExtension(const QString &folderPath) 
 }
 
 
-
-
-void MainWindow::on_DOIT_clicked()
-{
+void MainWindow::on_DOIT_clicked() {
     //TODO将plainTextEdit中的字符转到命令行内并运行，检测到有查询语句时进入新界面并展示查询结果
     ui->shuchu->clear();
     QStringList qtList;
-    QString sqls=ui->plainTextEdit->toPlainText();
+    QString sqls = ui->plainTextEdit->toPlainText();
     QByteArray ba = sqls.toLatin1();
-    char* sqlss=ba.data();
-    char sexit[]="exit";
+    char *sqlss = ba.data();
     std::stringstream ss;
-    if(std::strcmp(sqlss,sexit) == 0){
+    if (std::strcmp(sqlss, "exit") == 0) {
+        CloseDb();
         qtList.append("Bye.");
-        exit(1);
-    }else {
+        exit(42);
+    } else {
 
-        int rc = inputSQL(ss,sqlss);
-        if(rc) PrintErrorExit(rc);
+        int rc = inputSQL(ss, sqlss);
+        if (rc) PrintErrorExit(rc);
         qtList.append(QString::fromStdString(ss.str()));
 
     }
@@ -116,14 +110,13 @@ void MainWindow::on_DOIT_clicked()
 
     // 输出到 QPlainTextEdit
     ui->shuchu->appendPlainText(result);
-    displayListInTreeView(ui->treeWidget_dbBrowser,MgetFilesWithoutExtension(dbpath));
+    displayListInTreeView(ui->treeWidget_dbBrowser, MgetFilesWithoutExtension(dbpath));
 //
 
 }
 
 
-void MainWindow::on_save_clicked()
-{
+void MainWindow::on_save_clicked() {
     //用于保存
 }
 

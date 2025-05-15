@@ -4,24 +4,26 @@
 #include <QWidget>
 
 namespace Ui {
-class Form;
+    class Form;
 }
 
-class Form : public QWidget
-{
-    Q_OBJECT
+class Form : public QWidget {
+Q_OBJECT
 
 public:
     explicit Form(QWidget *parent = nullptr);
+
     ~Form();
 
 private slots:
+
     void on_toolButton_clicked();
 
     void on_toolButton_2_clicked();
 
 private:
     Ui::Form *ui;
+
     int validate(const QString &folderPath);
 };
 

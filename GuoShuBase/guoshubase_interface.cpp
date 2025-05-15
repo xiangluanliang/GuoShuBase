@@ -9,6 +9,10 @@ int OpenDb(const char *dbname){
 
 int CreateDb(const char *dbname){
     int rc;
+    if (chdir(dbname) < 0) {
+        cerr << " chdir error to " << dbname << "\n";
+        exit(1);
+    }
     RM_FileHandle relfh, attrfh;
     if(
             (rc = rmm.CreateFile("relcat", DataRelInfo::size()))
@@ -159,8 +163,7 @@ int CreateDb(const char *dbname){
             )
         PrintErrorExit(rc);
 
-    if(rc) return rc;
-    else return OpenDb(".");
+    return rc;
 }
 
 int CloseDb(){

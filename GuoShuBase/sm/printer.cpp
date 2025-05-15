@@ -19,10 +19,10 @@ using namespace std;
 // This method will output some spaces so that print entry will align everythin
 // nice and neat.
 //
-void Spaces(int maxLength, int printedSoFar)
+void Spaces(int maxLength, int printedSoFar, std::ostream &c)
 {
     for (int i = printedSoFar; i < maxLength; i++)
-        cout << " ";
+        c << " ";
 }
 
 //
@@ -207,14 +207,14 @@ void Printer::Print(ostream &c, const void * const data[])
                 str[MAXPRINTSTRING-3] ='.';
                 str[MAXPRINTSTRING-2] ='.';
                 c << str;
-                Spaces(MAXPRINTSTRING, strlen(str));
+                Spaces(MAXPRINTSTRING, strlen(str),c);
             } else {
                 strncpy(str, (char *)data[i], attributes[i].attrLength);
                 c << str;
                 if (attributes[i].attrLength < (int) strlen(psHeader[i]))
-                    Spaces(strlen(psHeader[i]), strlen(str));
+                    Spaces(strlen(psHeader[i]), strlen(str),c);
                 else
-                    Spaces(attributes[i].attrLength, strlen(str));
+                    Spaces(attributes[i].attrLength, strlen(str),c);
             }
         }
         if (attributes[i].attrType == INT) {
@@ -222,18 +222,18 @@ void Printer::Print(ostream &c, const void * const data[])
             sprintf(strSpace, "%d",a);
             c << a;
             if (strlen(psHeader[i]) < 12)
-                Spaces(12, strlen(strSpace));
+                Spaces(12, strlen(strSpace),c);
             else
-                Spaces(strlen(psHeader[i]), strlen(strSpace));
+                Spaces(strlen(psHeader[i]), strlen(strSpace),c);
         }
         if (attributes[i].attrType == FLOAT) {
             memcpy (&b, data[i], sizeof(float));
             sprintf(strSpace, "%f",b);
             c << strSpace;
             if (strlen(psHeader[i]) < 12)
-                Spaces(12, strlen(strSpace));
+                Spaces(12, strlen(strSpace),c);
             else
-                Spaces(strlen(psHeader[i]), strlen(strSpace));
+                Spaces(strlen(psHeader[i]), strlen(strSpace),c);
         }
     }
     c << "\n";
@@ -281,14 +281,14 @@ void Printer::Print(ostream &c, const char * const data)
                 str[MAXPRINTSTRING-3] ='.';
                 str[MAXPRINTSTRING-2] ='.';
                 c << str;
-                Spaces(MAXPRINTSTRING, strlen(str));
+                Spaces(MAXPRINTSTRING, strlen(str),c);
             } else {
                 strncpy(str, data+attributes[i].offset, attributes[i].attrLength);
                 c << str;
                 if (attributes[i].attrLength < (int) strlen(psHeader[i]))
-                    Spaces(strlen(psHeader[i]), strlen(str));
+                    Spaces(strlen(psHeader[i]), strlen(str),c);
                 else
-                    Spaces(attributes[i].attrLength, strlen(str));
+                    Spaces(attributes[i].attrLength, strlen(str),c);
             }
         }
         if (attributes[i].attrType == INT) {
@@ -296,18 +296,18 @@ void Printer::Print(ostream &c, const char * const data)
             sprintf(strSpace, "%d",a);
             c << a;
             if (strlen(psHeader[i]) < 12)
-                Spaces(12, strlen(strSpace));
+                Spaces(12, strlen(strSpace),c);
             else
-                Spaces(strlen(psHeader[i]), strlen(strSpace));
+                Spaces(strlen(psHeader[i]), strlen(strSpace),c);
         }
         if (attributes[i].attrType == FLOAT) {
             memcpy (&b, (data+attributes[i].offset), sizeof(float));
             sprintf(strSpace, "%f",b);
             c << strSpace;
             if (strlen(psHeader[i]) < 12)
-                Spaces(12, strlen(strSpace));
+                Spaces(12, strlen(strSpace),c);
             else
-                Spaces(strlen(psHeader[i]), strlen(strSpace));
+                Spaces(strlen(psHeader[i]), strlen(strSpace),c);
         }
     }
     c << "\n";

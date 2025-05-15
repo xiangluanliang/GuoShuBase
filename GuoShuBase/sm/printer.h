@@ -18,7 +18,7 @@
 #define MAXPRINTSTRING  ((2*MAXNAME) + 5)
 
 // Print some number of spaces
-void Spaces(int maxLength, int printedSoFar);
+void Spaces(int maxLength, int printedSoFar,std::ostream &c);
 
 class DataAttrInfo;
 class Tuple;
