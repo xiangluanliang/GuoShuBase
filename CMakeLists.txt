@@ -22,6 +22,9 @@ set(PROJECT_SOURCES
         form.ui        # 添加 form.ui
 )
 
+add_subdirectory(${CMAKE_SOURCE_DIR}/GuoShuBase)
+
+
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(guoshuqt
         MANUAL_FINALIZATION
@@ -71,3 +74,5 @@ install(TARGETS guoshuqt
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(guoshuqt)
 endif()
+
+target_link_libraries(guoshuqt PRIVATE guoshubase)

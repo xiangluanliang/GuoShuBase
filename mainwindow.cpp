@@ -10,6 +10,7 @@
 #include <QList>
 #include <QString>
 #include <iostream>
+#include "guoshubase_interface.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -60,8 +61,8 @@ MainWindow::MainWindow(const QString &folderPath,QWidget *parent)
     QFileInfo fileInfo(folderPath);
     dbname = fileInfo.fileName();
     std::cout<< dbname.toStdString() <<std::endl;
-    
-
+    int rc = OpenDb(dbname.toStdString().c_str());
+    if(rc) PrintErrorExit(rc);
 }
 
 
@@ -98,17 +99,17 @@ void MainWindow::on_DOIT_clicked()
     QByteArray ba = sqls.toLatin1();
     char* sqlss=ba.data();
     char sexit[]="exit";
+    std::stringstream ss;
     if(std::strcmp(sqlss,sexit) == 0){
+        qtList.append("Bye.");
         exit(1);
     }else {
-        qtList.append(QString::fromStdString(sqlss));
-        ;//std::list sqla;//=GBparsesql(pfm, smm, qlm,sqlss);
+
+        int rc = inputSQL(ss,sqlss);
+        if(rc) PrintErrorExit(rc);
+        qtList.append(QString::fromStdString(ss.str()));
+
     }
-
-
-//    for (const std::string &item : sqla) {
-//        qtList.append(QString::fromStdString(item));
-//    }//将list转化为qtlist
 
     // 合并为字符串
     QString result = qtList.join("\n");
