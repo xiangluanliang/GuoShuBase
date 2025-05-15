@@ -15,17 +15,24 @@ static std::unordered_map<std::string, TokenType> keywords = {
         {"INSERT", TokenType::INSERT},
         {"DELETE", TokenType::DELETE},
         {"UPDATE", TokenType::UPDATE},
-        {"FROM",   TokenType::FROM},
-        {"WHERE",  TokenType::WHERE},
-        {"INTO",   TokenType::INTO},
+        {"FROM", TokenType::FROM},
+        {"WHERE", TokenType::WHERE},
+        {"INTO", TokenType::INTO},
         {"VALUES", TokenType::VALUES},
-        {"AND",    TokenType::AND},
-        {"OR",     TokenType::OR},
-        {"GROUP",  TokenType::GROUP},
-        {"BY",     TokenType::BY},
-        {"ORDER",  TokenType::ORDER},
+        {"AND", TokenType::AND},
+        {"OR", TokenType::OR},
+        {"NOT", TokenType::NOT},
+        {"GROUP", TokenType::GROUP},
+        {"BY", TokenType::BY},
+        {"ORDER", TokenType::ORDER},
         {"HAVING", TokenType::HAVING},
-        {"SET",    TokenType::SET}
+        {"SET", TokenType::SET},
+        {"CREATE", TokenType::CREATE},
+        {"DROP", TokenType::DROP},
+        {"INDEX", TokenType::INDEX},
+        {"ON", TokenType::ON},
+        {"TABLE", TokenType::TABLE},
+        {"ALTER", TokenType::ALTER}
 };
 
 std::string TokenTypeToString(TokenType type) {
@@ -46,6 +53,18 @@ std::string TokenTypeToString(TokenType type) {
             return "INTO";
         case TokenType::VALUES:
             return "VALUES";
+        case TokenType::ALTER:
+            return "ALTER";
+        case TokenType::TABLE:
+            return "TABLE";
+        case TokenType::CREATE:
+            return "CREATE";
+        case TokenType::ADD:
+            return "ADD";
+        case TokenType::DROP:
+            return "DROP";
+        case TokenType::INDEX:
+            return "INDEX";
         case TokenType::AND:
             return "AND";
         case TokenType::OR:
@@ -88,6 +107,8 @@ std::string TokenTypeToString(TokenType type) {
             return "HAVING";
         case TokenType::SET:
             return "SET";
+        case TokenType::NOT:
+            return "NOT";
         case TokenType::END:
             return "END";
         default:
@@ -109,20 +130,47 @@ std::vector<Token> Tokenize(const std::string &sql) {
         if (isalpha(sql[i]) || sql[i] == '_') {
             std::string word;
             while (i < len && (isalnum(sql[i]) || sql[i] == '_')) {
-                word += toupper(sql[i]);
-                i++;
+                word += sql[i++];
             }
-            if (keywords.count(word)) {
-                tokens.push_back({keywords[word], word});
+
+            // 保留原始 word 供标识符使用
+            std::string keywordKey;
+            for (char c: word)
+                keywordKey += std::toupper(c);
+
+            if (keywords.count(keywordKey)) {
+                tokens.push_back({keywords[keywordKey], keywordKey});  // 关键字转大写
             } else {
-                tokens.push_back({TokenType::IDENTIFIER, word});
+                tokens.push_back({TokenType::IDENTIFIER, word});  // 用户标识符保留原样
             }
         } else if (isdigit(sql[i])) {
             std::string number;
-            while (i < len && isdigit(sql[i])) {
+            bool isFloat = false;
+            // 整数部分
+            while (i < len && isdigit(sql[i]))
                 number += sql[i++];
+
+            // 小数点部分
+            if (i < len && sql[i] == '.') {
+                isFloat = true;
+                number += sql[i++];  // 加入点
+                // 小数点后至少要有一个数字
+                if (i < len && isdigit(sql[i])) {
+                    while (i < len && isdigit(sql[i])) {
+                        number += sql[i++];
+                    }
+                } else {
+                    // 错误：点后没有数字 → 回退为整数
+                    isFloat = false;
+                    i--; // 回退，把点还回去
+                    number.pop_back();
+                }
             }
-            tokens.push_back({TokenType::INT_LITERAL, number});
+            if (isFloat)
+                tokens.push_back({TokenType::FLOAT_LITERAL, number});
+            else
+                tokens.push_back({TokenType::INT_LITERAL, number});
+
         } else if (sql[i] == '\'') {
             std::string literal;
             i++; // skip '
@@ -135,6 +183,10 @@ std::vector<Token> Tokenize(const std::string &sql) {
             switch (sql[i]) {
                 case '*':
                     tokens.push_back({TokenType::STAR, "*"});
+                    i++;
+                    break;
+                case '.':
+                    tokens.push_back({TokenType::DOT, "."});
                     i++;
                     break;
                 case ',':
