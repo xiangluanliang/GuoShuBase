@@ -7,6 +7,7 @@
 #include <QDir>
 #include<QWidget>
 #include <iostream>
+#include <QMessageBox>
 
 Form::Form(QWidget *parent)
     : QWidget(parent)
@@ -20,23 +21,6 @@ Form::~Form()
     delete ui;
 }
 
-QList<QString> Form::getFilesWithoutExtension(const QString &folderPath) {
-    QList<QString> filesWithoutExtension;
-    QDir dir(folderPath);
-
-    // 获取文件夹中的所有文件（不包括子文件夹）
-    QStringList files = dir.entryList(QDir::Files);
-
-    for (const QString &file : files) {
-        QFileInfo fileInfo(dir, file);
-        if (fileInfo.suffix().isEmpty()) {
-            // 如果文件无后缀，则添加到列表中
-            filesWithoutExtension.append(fileInfo.fileName());
-        }
-    }
-
-    return filesWithoutExtension;
-}
 
 void Form::on_toolButton_clicked()
 {
@@ -50,11 +34,16 @@ void Form::on_toolButton_clicked()
 
     if (!folderPath.isEmpty()) {
         qDebug() << "Selected folder:" << folderPath;
-        this->setVisible(false);
-        std::cout<< folderPath.toStdString() <<std::endl;
-
-        MainWindow* m =new MainWindow(folderPath);
-        m->show();
+        if(validate(folderPath) == 2) {
+            this->setVisible(false);
+            // 在这里处理新创建的文件夹路径
+            MainWindow* m = new MainWindow(folderPath);
+            m->show();
+        }else{
+            QMessageBox::information(this,
+                                     "打开错误",
+                                     "打开的目录对象不是合法的GuoShuBase数据库");
+        }
 
     }
 
@@ -102,3 +91,17 @@ void Form::on_toolButton_2_clicked()
 
 }
 
+int Form::validate(const QString &folderPath) {
+    int flag = 0;
+    QDir dir(folderPath);
+    // 获取文件夹中的所有文件（不包括子文件夹）
+    QStringList files = dir.entryList(QDir::Files);
+
+    for (const QString &file : files) {
+        if ((file.compare("relcat") == 0)||
+            (file.compare("attrcat") == 0)
+                ) flag++;
+    }
+
+    return flag;
+}

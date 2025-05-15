@@ -22,7 +22,7 @@ private slots:
 
 private:
     Ui::Form *ui;
-    QList<QString> getFilesWithoutExtension(const QString &folderPath);
+    int validate(const QString &folderPath);
 };
 
 #endif // FORM_H

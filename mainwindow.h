@@ -30,6 +30,7 @@ public:
 
     QList<QString> MgetFilesWithoutExtension(const QString &folderPath);
 
+
     QString dbpath;
     QString dbname;
 

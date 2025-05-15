@@ -64,6 +64,10 @@ MainWindow::MainWindow(const QString &folderPath,QWidget *parent)
 
 }
 
+
+
+
+
 QList<QString> MainWindow::MgetFilesWithoutExtension(const QString &folderPath) {
     QList<QString> filesWithoutExtension;
     QDir dir(folderPath);
